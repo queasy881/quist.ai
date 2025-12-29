@@ -10,6 +10,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import path from "path";
 import { fileURLToPath } from "url";
 
+console.log("SERVER VERSION: PORT FIX APPLIED");
+
 const app = express();
 
 // ✅ MUST use process.env.PORT for Railway
