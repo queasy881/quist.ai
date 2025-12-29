@@ -13,7 +13,7 @@ import { fileURLToPath } from "url";
 const app = express();
 
 // ✅ MUST use process.env.PORT for Railway
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // =======================
 // PATH FIX (ES MODULES)
