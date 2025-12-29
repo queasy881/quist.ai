@@ -1,0 +1,82 @@
+Step 1: Open Your Project Folder
+Navigate to your project folder in File Explorer (where index.html, server.js, etc. are located)
+Step 2: Open TWO Terminal Windows
+Option A: Using VS Code (Recommended)
+
+Open your project folder in VS Code
+Open Terminal (View → Terminal or Ctrl + `)
+Click the "+" button to open a second terminal
+
+Option B: Using Command Prompt
+
+Open two separate Command Prompt windows
+In both, navigate to your project folder:
+
+bash   cd C:\path\to\your\project
+
+Step 3: Start Backend Server (Terminal 1)
+In the first terminal, run:
+bashnode server.js
+```
+
+✅ **You should see:**
+```
+Backend server running at http://localhost:3000
+Ready! Open your chat page now.
+⚠️ Keep this terminal running! Don't close it.
+
+Step 4: Start Frontend Server (Terminal 2)
+In the second terminal, run:
+bashhttp-server
+```
+
+✅ **You should see:**
+```
+Starting up http-server
+Available on:
+  http://127.0.0.1:8080
+  http://192.168.x.x:8080
+```
+
+⚠️ **Keep this terminal running too!** Don't close it.
+
+---
+
+### **Step 5: Open in Browser**
+
+Open your web browser and go to:
+```
+http://localhost:8080
+
+🎯 Quick Checklist:
+
+✅ Both terminals are running
+✅ Backend shows "Backend server running at http://localhost:3000"
+✅ Frontend shows "Available on: http://127.0.0.1:8080"
+✅ Browser is open to http://localhost:8080
+✅ Email verification modal appears
+
+
+🔧 If You Get Errors:
+"node: command not found"
+Node.js isn't installed. Download from: https://nodejs.org/
+"http-server: command not found"
+Run this once:
+bashnpm install -g http-server
+"Port 3000 already in use"
+Close the other terminal or app using port 3000, or change the port in server.js:
+javascriptconst port = 3001; // Change from 3000 to 3001
+Network Error in Browser
+Make sure both terminals are running and showing the success messages.
+
+📝 To Stop Everything:
+Press Ctrl + C in both terminal windows.
+
+💡 Pro Tip:
+Create a file called start.bat (Windows) or start.sh (Mac/Linux) in your project folder:
+Windows (start.bat):
+batch@echo off
+start cmd /k "node server.js"
+start cmd /k "http-server"
+echo Servers starting... Open http://localhost:8080 in your browser
+Then just double-click start.bat to start everything! 🚀

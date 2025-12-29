@@ -1,0 +1,2 @@
+chloe.ns.cloudflare.com
+paul.ns.cloudflare.com
