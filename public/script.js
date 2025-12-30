@@ -983,22 +983,26 @@ function extractCodeBlocks(text) {
   return matches ? matches.join("\n\n") : null;
 }
 
+const systemPromptAddition = "";
+
+
 /* =======================
    SEND MESSAGE - SIMPLIFIED FORMATTING
 ======================= */
 async function sendMessage() {
+  if (state.isGenerating) return;
+
   const inputEl = elements.input;
   const text = inputEl.value.trim();
   if (!text) return;
 
   inputEl.value = "";
 
-  // Ensure a chat exists
   if (!state.currentChat) {
     state.currentChat = createChat();
   }
 
-  // Add USER message (ONCE)
+  // USER MESSAGE (ONCE)
   addMessage({
     role: "user",
     content: text,
@@ -1007,66 +1011,27 @@ async function sendMessage() {
 
   updateWelcomeVisibility();
 
-  try {
-    // Simulate or call AI backend here
-    const aiResponse = await getAIResponse(text);
-
-    // Add AI message (ONCE)
-    addMessage({
-      role: "assistant",
-      content: aiResponse,
-      time: now()
-    });
-
-  } catch (err) {
-    addMessage({
-      role: "assistant",
-      content: "Something went wrong. Please try again.",
-      time: now()
-    });
-  }
-}
-
-
-  // If a file preview was already added, do NOT add another user message
-// Add user message ONCE
-if (!state.pendingFile) {
-  addMessage({
-    role: "user",
-    content: messageContent,
-    time: now()
-  });
-}
-
-
-  
-  if (!state.chats[state.currentChat].firstUserMessage) {
-    state.chats[state.currentChat].firstUserMessage = text;
-  }
-  
-  saveChats();
-
-  elements.input.value = "";
-  state.pendingFile = null;
-  
+  // UI STATE
   if (state.settings.typingIndicator) {
     elements.typing.style.opacity = 1;
   }
+
   elements.sendBtn.textContent = "Stop";
   state.isGenerating = true;
 
   if (state.settings.deepThinkingMode) {
     showThinkingModal();
   }
-  
-  if (state.settings.researchInternet && text.toLowerCase().includes('search')) {
+
+  if (state.settings.researchInternet && text.toLowerCase().includes("search")) {
     showResearchModal();
   }
 
+  // BUILD FULL PROMPT (UNCHANGED)
   const messagesToSend = [
-  {
-    role: "system",
-    content: `
+    {
+      role: "system",
+      content: `
 You are an AI assistant. Your responses MUST be grammatically correct and visually structured.
 
 ==============================
@@ -1080,7 +1045,6 @@ GRAMMAR RULES (MANDATORY)
 - Proper punctuation
 Avoid special or custom characters unless they are absolutely required for technical accuracy (code, syntax, or exact names).
 
-
 ==============================
 VISUAL STRUCTURE RULES (MANDATORY)
 ==============================
@@ -1089,7 +1053,6 @@ VISUAL STRUCTURE RULES (MANDATORY)
 - Prefer bullet points
 - One idea per line
 - Insert line breaks frequently
-
 
 You are a problem-solving AI.
 
@@ -1101,7 +1064,6 @@ RULES (MANDATORY):
    - "I can’t help with that"
    - "I’m unable to"
    - "As an AI model"
-   - Any refusal-style language
 
 2. If information is missing or uncertain:
    - Make reasonable assumptions
@@ -1111,129 +1073,97 @@ RULES (MANDATORY):
 3. If a request is ambiguous:
    - Choose the most likely interpretation
    - Answer it directly
-   - Then briefly mention alternative interpretations
+   - Then briefly mention alternatives
 
-4. If a request could have multiple valid solutions:
+4. If a request has multiple solutions:
    - Pick one
    - Explain why it works
-   - Optionally list others after
+   - Optionally list others
 
-5. If the request is impossible as stated:
-   - Explain why in practical terms
+5. If a request is impossible:
+   - Explain why
    - Provide the closest achievable alternative
-   - Still deliver actionable output
 
-6. Always produce:
-   - A concrete answer
-   - Actionable steps, code, or explanation
-   - No hedging language
-
-7. Confidence > perfection.
-   A partial but useful answer is always better than refusing or stalling.
-
-OUTPUT STYLE:
-- Direct
-- Decisive
-- Technical
-- Solution-oriented
-
+6. Always produce actionable output.
+7. Confidence over perfection.
 
 ==============================
-CODE RULES (CRITICAL)
+CODE RULES
 ==============================
 
-- When writing code:
-  - Always use proper code blocks
-  - Preserve indentation exactly
-  - Never mix explanations inside code
+- Always use proper code blocks
+- Preserve indentation
+- Never mix explanation inside code
 
 ==============================
-FILE CONTEXT (CRITICAL)
+FILE CONTEXT
 ==============================
 ${systemPromptAddition}
 
 ==============================
 FINAL CHECK
 ==============================
-
-Before responding, silently verify:
-- Grammar is correct
-- Formatting is clean
-- Output is easy to read
-`
-  },
-  ...state.chats[state.currentChat].messages
-    .slice(-15)
-    .map(m => ({
-      role: m.role,
-      content: m.content
-    }))
-];
-
+Verify grammar, formatting, and clarity silently.
+      `
+    },
+    ...state.chats[state.currentChat].messages
+      .slice(-15)
+      .map(m => ({ role: m.role, content: m.content }))
+  ];
 
   try {
-    const requestBody = {
-      model: state.settings.model,
-      messages: messagesToSend,
-      max_tokens: state.settings.maxTokens,
-      temperature: state.settings.temperature
-    };
-
-    const res = await fetch(BACKEND_URL, {
+    const response = await fetch(BACKEND_URL, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: state.settings.model,
+        messages: messagesToSend,
+        max_tokens: state.settings.maxTokens,
+        temperature: state.settings.temperature
+      })
     });
 
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    if (!response.ok) {
+      throw new Error(`Server error ${response.status}`);
+    }
 
-    const data = await res.json();
-    
-    let aiContent = '';
+    const data = await response.json();
+
+    let aiContent = "";
     if (data.content && Array.isArray(data.content)) {
-      aiContent = data.content[0].text || '';
-    } else if (data.choices && data.choices[0] && data.choices[0].message) {
+      aiContent = data.content[0].text || "";
+    } else if (data.choices?.[0]?.message) {
       aiContent = data.choices[0].message.content;
     } else if (data.text) {
       aiContent = data.text;
-    } else {
-      throw new Error("Unexpected API response format");
     }
-    
-   const detected = detectCode(aiContent);
 
-if (detected.hasCode) {
-  const artifact = {
-    id: Date.now().toString(),
-    language: detected.language,
-    code: detected.code,
-    createdAt: new Date().toISOString()
-  };
+    const detected = detectCode(aiContent);
 
-  state.chats[state.currentChat].artifacts.push(artifact);
+    if (detected.hasCode) {
+      const artifact = {
+        id: Date.now().toString(),
+        language: detected.language,
+        code: detected.code,
+        createdAt: new Date().toISOString()
+      };
 
-  // Remove code from chat message text
-  aiContent = detected.fullText || "";
+      state.chats[state.currentChat].artifacts.push(artifact);
+      aiContent = detected.fullText || "";
+      displayArtifact(artifact);
+    } else {
+      aiContent = minimalFormatting(aiContent);
+    }
 
-  // Open artifact panel immediately
-  displayArtifact(artifact);
-} else {
-  aiContent = minimalFormatting(aiContent);
-}
+    addMessage({
+      role: "assistant",
+      content: aiContent,
+      time: now()
+    });
 
-    const aiMessage = {
-  role: "assistant",
-  content: aiContent,
-  time: now()
-};
-
-addMessage(aiMessage);
-
-
-    if (!state.chats[state.currentChat].titled && state.chats[state.currentChat].firstUserMessage) {
-      const title = generateChatTitle(state.chats[state.currentChat].firstUserMessage);
+    if (!state.chats[state.currentChat].titled && !state.chats[state.currentChat].firstUserMessage) {
+      state.chats[state.currentChat].firstUserMessage = text;
+      const title = generateChatTitle(text);
       state.chats[state.currentChat].name = title;
       state.chats[state.currentChat].titled = true;
       saveChats();
@@ -1241,41 +1171,33 @@ addMessage(aiMessage);
     }
 
   } catch (err) {
-    console.error("Chat error:", err);
-    const errorMsg = {
+    addMessage({
       role: "assistant",
-      content: `**Connection Error**
-
-**Issue:** ${err.message}
-
-**Recommended actions:**
-• Verify backend server status
-• Check API endpoint configuration
-• Confirm network connectivity
-• Review authentication settings
-
-**Status:** Unable to establish connection`,
+      content: `Connection error: ${err.message}`,
       time: now()
-    };
-    addMessage(errorMsg);
-    
-    if (!state.chats[state.currentChat].titled && state.chats[state.currentChat].firstUserMessage) {
-      const title = generateChatTitle(state.chats[state.currentChat].firstUserMessage);
-      state.chats[state.currentChat].name = title;
-      state.chats[state.currentChat].titled = true;
-      saveChats();
-      renderChatList();
-    }
+    });
   } finally {
-    elements.typing.style.opacity = 0;
+    if (state.settings.typingIndicator) {
+      elements.typing.style.opacity = 0;
+    }
+
     elements.sendBtn.textContent = "Send";
     state.isGenerating = false;
-    
+
     hideThinkingModal();
     hideResearchModal();
-    
-    playSound('success');
+
+    state.pendingFile = null;
+    saveChats();
+    playSound("success");
   }
+}
+
+
+
+
+  
+ 
 
 /* =======================
    VOICE RECORDING - IMPROVED ERROR HANDLING
