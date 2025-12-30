@@ -1,4 +1,4 @@
-// server.js — FINAL (Railway + Claude + Email + Frontend)
+// server.js — FINAL (Railway + Claude + Resend + Frontend)
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -10,12 +10,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import path from "path";
 import { fileURLToPath } from "url";
 
-console.log("SERVER VERSION: PORT FIX APPLIED");
+console.log("SERVER VERSION: RESEND ACTIVE");
 
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ✅ MUST use process.env.PORT for Railway
+// =======================
+// PORT (Railway)
+// =======================
 const PORT = process.env.PORT || 8080;
 
 // =======================
@@ -48,31 +50,12 @@ const anthropic = new Anthropic({
 });
 
 // =======================
-// EMAIL TRANSPORTER
-// =======================
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-transporter.verify(err => {
-  if (err) {
-    console.error("❌ Email error:", err);
-  } else {
-    console.log("✅ Email transporter ready");
-  }
-});
-
-// =======================
 // VERIFICATION STORAGE
 // =======================
 const verificationCodes = new Map();
 
 // =======================
-// SEND VERIFICATION CODE
+// SEND VERIFICATION CODE (RESEND)
 // =======================
 app.post("/api/send-verification", async (req, res) => {
   try {
@@ -90,17 +73,21 @@ app.post("/api/send-verification", async (req, res) => {
     });
 
     await resend.emails.send({
-  from: "Quist AI <no-reply@quist.world>",
-  to: email,
-  subject: "Your verification code",
-  html: `<p>Your verification code is <b>${code}</b></p>`
-});
-
+      from: "Quist AI <onboarding@resend.dev>",
+      to: email,
+      subject: "Your verification code",
+      html: `
+        <h2>Email Verification</h2>
+        <p>Your verification code is:</p>
+        <h1>${code}</h1>
+        <p>This code expires in 10 minutes.</p>
+      `
+    });
 
     res.json({ success: true });
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ Email error:", err);
     res.status(500).json({ error: "Email failed" });
   }
 });
