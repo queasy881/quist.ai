@@ -1062,6 +1062,8 @@ GRAMMAR RULES (MANDATORY)
 - No sentence fragments
 - Proper capitalization
 - Proper punctuation
+Avoid special or custom characters unless they are absolutely required for technical accuracy (code, syntax, or exact names).
+
 
 ==============================
 VISUAL STRUCTURE RULES (MANDATORY)
