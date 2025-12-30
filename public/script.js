@@ -70,7 +70,11 @@ const elements = {
   maxTokensProgress: document.getElementById("maxTokensProgress"),
   typingSpeedProgress: document.getElementById("typingSpeedProgress"),
   soundVolumeProgress: document.getElementById("soundVolumeProgress"),
-  animationSpeedProgress: document.getElementById("animationSpeedProgress")
+  animationSpeedProgress: document.getElementById("animationSpeedProgress"),
+  // Welcome screen elements
+  welcomeInput: document.getElementById("welcomeInput"),
+  welcomeVoiceBtn: document.getElementById("welcomeVoiceBtn"),
+  welcomeSendBtn: document.getElementById("welcomeSendBtn")
 };
 
 /* =======================
@@ -907,7 +911,6 @@ function addMessage({ role, content, time }) {
 
 
 
-
 window.openArtifact = function(artifactId) {
   const artifact = state.chats[state.currentChat].artifacts.find(a => a.id === artifactId);
   if (artifact) displayArtifact(artifact);
@@ -1306,6 +1309,79 @@ function stopVoiceRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
   }
+}
+
+/* =======================
+   WELCOME SCREEN FUNCTIONALITY
+======================= */
+function setupWelcomeScreen() {
+  // Example query buttons
+  document.querySelectorAll('.example-query').forEach(button => {
+    button.addEventListener('click', () => {
+      const text = button.querySelector('.query-text').textContent;
+      elements.welcomeInput.value = text;
+      elements.welcomeInput.focus();
+    });
+  });
+  
+  // Welcome screen send button
+  if (elements.welcomeSendBtn) {
+    elements.welcomeSendBtn.addEventListener('click', () => {
+      const text = elements.welcomeInput.value.trim();
+      if (text) {
+        sendMessageFromWelcomeScreen(text);
+      }
+    });
+  }
+  
+  // Welcome screen input enter key
+  if (elements.welcomeInput) {
+    elements.welcomeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const text = elements.welcomeInput.value.trim();
+        if (text && !state.isGenerating) {
+          sendMessageFromWelcomeScreen(text);
+        }
+      }
+    });
+  }
+  
+  // Welcome screen voice button
+  if (elements.welcomeVoiceBtn) {
+    elements.welcomeVoiceBtn.addEventListener('click', () => {
+      if (elements.welcomeInput) {
+        elements.welcomeInput.focus();
+        showNotification("Voice input is available in the main chat interface");
+        playSound('messageSent');
+      }
+    });
+  }
+  
+  // Welcome screen attach icon
+  document.querySelector('.attach-icon')?.addEventListener('click', () => {
+    handleFileUpload();
+  });
+}
+
+function sendMessageFromWelcomeScreen(text) {
+  elements.welcomeInput.value = "";
+  elements.welcomeScreen.style.display = "none";
+  elements.chat.style.display = "block";
+  
+  const userMessage = { role: "user", content: text, time: now() };
+  addMessage(userMessage);
+  
+  if (!state.chats[state.currentChat]) {
+    state.currentChat = createChat();
+  }
+  
+  state.chats[state.currentChat].messages.push(userMessage);
+  state.chats[state.currentChat].firstUserMessage = text;
+  saveChats();
+  
+  // Trigger AI response
+  sendMessage(text);
 }
 
 /* =======================
@@ -2290,6 +2366,7 @@ function showNotification(message) {
     animation: fadeIn 0.3s ease;
     box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
     font-weight: 600;
+    font-family: var(--font-primary);
   `;
   
   document.body.appendChild(notification);
@@ -2308,6 +2385,7 @@ function init() {
   applySettings();
   setupSettingsListeners();
   setupEventListeners();
+  setupWelcomeScreen();
   loadChat(state.currentChat);
   updateStats();
   updateUserDisplay();
@@ -2316,7 +2394,7 @@ function init() {
     addParticleEffects();
   }
   
-  console.log("Quist AI app initialized with Claude API!");
+  console.log("Quist AI app initialized with modern welcome screen!");
 }
 
 // Start the app

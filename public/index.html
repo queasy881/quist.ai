@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <title>Quist AI Chat</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -50,25 +53,110 @@
 
     <div class="main-content">
       <div class="chat-wrapper">
-        <!-- MODERN WELCOME SCREEN -->
+        <!-- UPDATED MODERN WELCOME SCREEN -->
         <div id="welcomeScreen" class="welcome">
           <div class="welcome-content">
-            <h1 class="modern-headline">Από πού να αρχίσουμε;</h1>
-            <div class="modern-input-container">
-              <div class="attach-icon">+</div>
-              <input
-                type="text"
-                class="modern-input"
-                placeholder="Ρωτήστε οτιδήποτε"
-                autocomplete="off"
-              />
-              <button class="modern-voice-btn" title="Voice Input">
-                <svg class="voice-icon" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 1C10.9 1 10 1.9 10 3V12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12V3C14 1.9 13.1 1 12 1Z"/>
-                  <path d="M19 12C19 15.9 15.9 19 12 19C8.1 19 5 15.9 5 12" stroke-width="2"/>
-                  <path d="M12 22C15.3 22 18 19.3 18 16" stroke-width="2"/>
-                </svg>
-              </button>
+            <div class="welcome-header">
+              <div class="welcome-logo">Q</div>
+              <div class="welcome-tagline">
+                <span class="tagline-text">Intelligent Conversations</span>
+                <span class="tagline-dot"></span>
+                <span class="tagline-text">Powered by Claude</span>
+              </div>
+            </div>
+            
+            <div class="welcome-main">
+              <h1 class="modern-headline">
+                <span class="headline-gradient">What can I</span>
+                <span class="headline-gradient">help you with?</span>
+              </h1>
+              
+              <div class="welcome-subtitle">
+                <p>Ask anything, upload files, or try one of these examples:</p>
+              </div>
+
+              <div class="example-queries">
+                <button class="example-query">
+                  <span class="query-icon">💡</span>
+                  <span class="query-text">"Explain quantum computing in simple terms"</span>
+                </button>
+                <button class="example-query">
+                  <span class="query-icon">📊</span>
+                  <span class="query-text">"Analyze this sales data and provide insights"</span>
+                </button>
+                <button class="example-query">
+                  <span class="query-icon">💻</span>
+                  <span class="query-text">"Write a Python function to sort data efficiently"</span>
+                </button>
+                <button class="example-query">
+                  <span class="query-icon">🎨</span>
+                  <span class="query-text">"Help me design a modern website layout"</span>
+                </button>
+              </div>
+
+              <div class="modern-input-container">
+                <div class="input-wrapper">
+                  <div class="attach-icon" title="Attach files">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  </div>
+                  
+                  <input
+                    type="text"
+                    class="modern-input"
+                    placeholder="Ask Quist anything..."
+                    autocomplete="off"
+                    id="welcomeInput"
+                  />
+                  
+                  <div class="input-actions">
+                    <button class="modern-voice-btn" title="Voice Input" id="welcomeVoiceBtn">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                      </svg>
+                    </button>
+                    
+                    <button class="modern-send-btn" title="Send message" id="welcomeSendBtn">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="input-hints">
+                  <span class="hint">Press Enter to send • Shift + Enter for new line • Ctrl + / for commands</span>
+                </div>
+              </div>
+
+              <div class="welcome-features">
+                <div class="feature">
+                  <div class="feature-icon">🔒</div>
+                  <div class="feature-content">
+                    <div class="feature-title">Secure & Private</div>
+                    <div class="feature-desc">Your conversations are encrypted</div>
+                  </div>
+                </div>
+                <div class="feature">
+                  <div class="feature-icon">📁</div>
+                  <div class="feature-content">
+                    <div class="feature-title">File Support</div>
+                    <div class="feature-desc">Upload images, PDFs, code, and more</div>
+                  </div>
+                </div>
+                <div class="feature">
+                  <div class="feature-icon">⚡</div>
+                  <div class="feature-content">
+                    <div class="feature-title">Fast Responses</div>
+                    <div class="feature-desc">Powered by Claude's latest models</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
