@@ -677,12 +677,13 @@ function loadChat(id) {
   state.currentChat = id;
   elements.chat.innerHTML = "";
 
-  state.chats[id].messages.forEach(addMessage);
+  state.chats[id].messages.forEach(renderMessage);
 
   updateWelcomeVisibility();
   renderChatList();
   updateStats();
 }
+
 
 
 /* =======================
@@ -863,32 +864,23 @@ function detectCode(text) {
   
   return { hasCode: false };
 }
-
-/* =======================
-   MESSAGE HANDLING - FIXED CODE RENDERING
-======================= */
-function addMessage({ role, content, time }) {
+function renderMessage({ role, content, time }) {
   const messagesContainer = elements.chat;
 
-  // Create message wrapper
   const messageDiv = document.createElement("div");
   messageDiv.className = `message ${role}`;
 
-  // Create message content container
   const messageContent = document.createElement("div");
   messageContent.className = "message-content";
 
-  // Render HTML previews OR plain text safely
   if (typeof content === "string" && content.trim().startsWith("<div")) {
     messageContent.innerHTML = content;
   } else {
     messageContent.textContent = content;
   }
 
-  // Append content to message
   messageDiv.appendChild(messageContent);
 
-  // Optional time display
   if (time) {
     const timeDiv = document.createElement("div");
     timeDiv.className = "time";
@@ -896,23 +888,23 @@ function addMessage({ role, content, time }) {
     messageDiv.appendChild(timeDiv);
   }
 
-  // Add message to chat
   messagesContainer.appendChild(messageDiv);
-
-  // Auto-scroll to bottom
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
 
-  // Save message to chat state
+/* =======================
+   MESSAGE HANDLING - FIXED CODE RENDERING
+======================= */
+function addMessage(message) {
+  renderMessage(message);
+
   if (state.currentChat && state.chats[state.currentChat]) {
-    state.chats[state.currentChat].messages.push({
-      role,
-      content,
-      time
-    });
+    state.chats[state.currentChat].messages.push(message);
     saveChats();
     updateStats();
   }
 }
+
 
 
 
@@ -994,27 +986,47 @@ function extractCodeBlocks(text) {
 /* =======================
    SEND MESSAGE - SIMPLIFIED FORMATTING
 ======================= */
-async function sendMessage(userText = null) {
-  const text = userText || elements.input.value.trim();
-  if (!text || state.isGenerating) return;
+async function sendMessage() {
+  const inputEl = elements.input;
+  const text = inputEl.value.trim();
+  if (!text) return;
 
-  if (elements.welcomeScreen.style.display !== "none") {
-    elements.welcomeScreen.style.display = "none";
-    elements.chat.style.display = "block";
+  inputEl.value = "";
+
+  // Ensure a chat exists
+  if (!state.currentChat) {
+    state.currentChat = createChat();
   }
 
-  let messageContent = text;
-  let systemPromptAddition = "";
-  
-  if (state.pendingFile) {
-    messageContent = text;
-    
-    if (state.pendingFile.content) {
-      systemPromptAddition = `\n\nThe user has uploaded a file named "${state.pendingFile.name}". Here is the complete content of the file:\n\n--- FILE CONTENT START ---\n${state.pendingFile.content}\n--- FILE CONTENT END ---\n\nPlease analyze this file content and respond to the user's question about it.`;
-    } else if (state.pendingFile.isImage) {
-      systemPromptAddition = `\n\nThe user has uploaded an image file named "${state.pendingFile.name}". The image is displayed in the conversation. Please help the user with their question about this image.`;
-    }
+  // Add USER message (ONCE)
+  addMessage({
+    role: "user",
+    content: text,
+    time: now()
+  });
+
+  updateWelcomeVisibility();
+
+  try {
+    // Simulate or call AI backend here
+    const aiResponse = await getAIResponse(text);
+
+    // Add AI message (ONCE)
+    addMessage({
+      role: "assistant",
+      content: aiResponse,
+      time: now()
+    });
+
+  } catch (err) {
+    addMessage({
+      role: "assistant",
+      content: "Something went wrong. Please try again.",
+      time: now()
+    });
   }
+}
+
 
   // If a file preview was already added, do NOT add another user message
 // Add user message ONCE
@@ -1264,7 +1276,6 @@ addMessage(aiMessage);
     
     playSound('success');
   }
-}
 
 /* =======================
    VOICE RECORDING - IMPROVED ERROR HANDLING
@@ -1366,6 +1377,12 @@ async function startVoiceRecording() {
     showNotification("Could not access microphone. Please check permissions.");
     playSound('error');
   }
+}
+
+
+async function getAIResponse(prompt) {
+  // TEMP placeholder — replace with real API call
+  return "This is a test response.";
 }
 
 function stopVoiceRecording() {
