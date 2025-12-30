@@ -984,7 +984,7 @@ function extractCodeBlocks(text) {
 }
 
 const systemPromptAddition = "";
-
+i
 
 /* =======================
    SEND MESSAGE - SIMPLIFIED FORMATTING
@@ -2395,8 +2395,9 @@ function init() {
   applySettings();
   setupSettingsListeners();
   setupEventListeners();
-  setupWelcomeScreen();
+  setupWelcomeScreen(); 
   loadChat(state.currentChat);
+  checkVerification();
   updateStats();
   updateUserDisplay();
   
