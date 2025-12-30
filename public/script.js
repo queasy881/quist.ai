@@ -202,10 +202,24 @@ let state = {
 };
 
 // Load saved settings
+// Load saved settings
 const savedSettings = localStorage.getItem("appSettings");
 if (savedSettings) {
   state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
 }
+
+// 🔒 CLAUDE-ONLY MODEL LOCK
+const allowedClaudeModels = [
+  "claude-3-haiku-20240307",
+  "claude-3-sonnet-20240229",
+  "claude-3-opus-20240229"
+];
+
+if (!allowedClaudeModels.includes(state.settings.model)) {
+  state.settings.model = "claude-3-haiku-20240307";
+  localStorage.setItem("appSettings", JSON.stringify(state.settings));
+}
+
 
 // Initialize current chat
 state.currentChat = Object.keys(state.chats)[0] || createChat();

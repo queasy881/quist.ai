@@ -50,6 +50,12 @@ if (!process.env.CLAUDE_API_KEY) {
 // =======================
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+console.log(
+  "CLAUDE KEY CHECK:",
+  process.env.CLAUDE_API_KEY?.slice(0, 12)
+);
+
+
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
