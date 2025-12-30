@@ -5,7 +5,7 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import Anthropic from "@anthropic-ai/sdk";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,6 +13,7 @@ import { fileURLToPath } from "url";
 console.log("SERVER VERSION: PORT FIX APPLIED");
 
 const app = express();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ✅ MUST use process.env.PORT for Railway
 const PORT = process.env.PORT || 8080;
@@ -88,16 +89,13 @@ app.post("/api/send-verification", async (req, res) => {
       expires: Date.now() + 10 * 60 * 1000
     });
 
-    await transporter.sendMail({
-      from: `"Quist AI" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Your Verification Code",
-      html: `
-        <h2>Your verification code</h2>
-        <h1>${code}</h1>
-        <p>Expires in 10 minutes.</p>
-      `
-    });
+    await resend.emails.send({
+  from: "Quist AI <no-reply@quist.world>",
+  to: email,
+  subject: "Your verification code",
+  html: `<p>Your verification code is <b>${code}</b></p>`
+});
+
 
     res.json({ success: true });
 
