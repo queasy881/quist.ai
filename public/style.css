@@ -2004,6 +2004,10 @@ body.compact-mode .modern-headline {
     min-height: 26px;
     font-size: 12px;
   }
+  .chat-area {
+  background: var(--modern-bg);
+}
+
 
   .settings {
     min-width: 90%;
