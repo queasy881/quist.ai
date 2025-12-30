@@ -662,22 +662,28 @@ function renderChatList() {
   });
 }
 
+function updateWelcomeVisibility() {
+  const hasMessages =
+    state.currentChat &&
+    state.chats[state.currentChat] &&
+    state.chats[state.currentChat].messages.length > 0;
+
+  elements.welcomeScreen.style.display = hasMessages ? "none" : "flex";
+  elements.chat.style.display = hasMessages ? "flex" : "none";
+}
+
+
 function loadChat(id) {
   state.currentChat = id;
   elements.chat.innerHTML = "";
-  
-  if (state.chats[id].messages.length === 0) {
-    elements.welcomeScreen.style.display = "flex";
-    elements.chat.style.display = "none";
-  } else {
-    elements.welcomeScreen.style.display = "none";
-    elements.chat.style.display = "block";
-    state.chats[id].messages.forEach(addMessage);
-  }
-  
+
+  state.chats[id].messages.forEach(addMessage);
+
+  updateWelcomeVisibility();
   renderChatList();
   updateStats();
 }
+
 
 /* =======================
    CHAT TITLE GENERATION
@@ -2327,6 +2333,24 @@ function setupEventListeners() {
     }
   });
 }
+function updateWelcomeVisibility() {
+  const chat = elements.chat;
+  const welcome = elements.welcomeScreen;
+
+  const hasMessages =
+    state.currentChat &&
+    state.chats[state.currentChat] &&
+    state.chats[state.currentChat].messages.length > 0;
+
+  if (hasMessages) {
+    welcome.style.display = "none";
+    chat.style.display = "flex";
+  } else {
+    welcome.style.display = "flex";
+    chat.style.display = "none";
+  }
+}
+
 
 /* =======================
    MODAL HELPERS
