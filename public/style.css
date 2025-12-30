@@ -51,7 +51,7 @@ body {
   justify-content: center;
   padding: 40px;
   overflow-y: auto;
-  background: var(--modern-bg);
+  background: transparent;
   position: relative;
   min-height: 100vh;
 }
