@@ -984,7 +984,7 @@ function extractCodeBlocks(text) {
 }
 
 const systemPromptAddition = "";
-i
+
 
 /* =======================
    SEND MESSAGE - SIMPLIFIED FORMATTING
