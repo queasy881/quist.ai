@@ -1,4 +1,4 @@
-// server.js — FINAL (Railway + Claude + Resend + Frontend)
+// server.js — FINAL (Railway + Resend + Claude)
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -13,7 +13,6 @@ import { fileURLToPath } from "url";
 console.log("SERVER VERSION: RESEND ACTIVE");
 
 const app = express();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 // =======================
 // PORT (Railway)
@@ -30,38 +29,46 @@ const __dirname = path.dirname(__filename);
 // MIDDLEWARE
 // =======================
 app.use(cors());
-app.use(express.json({ limit: "10mb" }));
-
-// =======================
-// SERVE FRONTEND
-// =======================
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // =======================
-// CLAUDE CLIENT
+// ENV CHECKS
 // =======================
-if (!process.env.CLAUDE_API_KEY) {
-  console.error("❌ CLAUDE_API_KEY is missing");
+if (!process.env.RESEND_API_KEY) {
+  console.error("❌ RESEND_API_KEY missing");
   process.exit(1);
 }
 
+if (!process.env.CLAUDE_API_KEY) {
+  console.error("❌ CLAUDE_API_KEY missing");
+  process.exit(1);
+}
+
+// =======================
+// CLIENTS
+// =======================
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
+  apiKey: process.env.CLAUDE_API_KEY,
 });
 
 // =======================
-// VERIFICATION STORAGE
+// VERIFICATION STORE
 // =======================
 const verificationCodes = new Map();
 
 // =======================
-// SEND VERIFICATION CODE (RESEND)
+// SEND VERIFICATION EMAIL
 // =======================
 app.post("/api/send-verification", async (req, res) => {
   try {
     const { email } = req.body;
 
-    if (!email || !email.includes("@")) {
+    console.log("EMAIL RECEIVED:", email);
+
+    if (!email || typeof email !== "string" || !email.includes("@")) {
       return res.status(400).json({ error: "Invalid email" });
     }
 
@@ -69,10 +76,10 @@ app.post("/api/send-verification", async (req, res) => {
 
     verificationCodes.set(email, {
       code,
-      expires: Date.now() + 10 * 60 * 1000
+      expires: Date.now() + 10 * 60 * 1000,
     });
 
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: "Quist AI <onboarding@resend.dev>",
       to: email,
       subject: "Your verification code",
@@ -81,11 +88,16 @@ app.post("/api/send-verification", async (req, res) => {
         <p>Your verification code is:</p>
         <h1>${code}</h1>
         <p>This code expires in 10 minutes.</p>
-      `
+      `,
     });
 
-    res.json({ success: true });
+    console.log("RESEND RESULT:", data, error);
 
+    if (error) {
+      return res.status(500).json({ error: "Email failed" });
+    }
+
+    res.json({ success: true });
   } catch (err) {
     console.error("❌ Email error:", err);
     res.status(500).json({ error: "Email failed" });
@@ -97,6 +109,7 @@ app.post("/api/send-verification", async (req, res) => {
 // =======================
 app.post("/api/verify-code", (req, res) => {
   const { email, code } = req.body;
+
   const stored = verificationCodes.get(email);
 
   if (!stored) return res.status(400).json({ error: "No code found" });
@@ -129,11 +142,10 @@ app.post("/api/chat", async (req, res) => {
       system,
       temperature,
       max_tokens,
-      messages: claudeMessages
+      messages: claudeMessages,
     });
 
     res.json({ content: response.content });
-
   } catch (err) {
     console.error("❌ Claude error:", err);
     res.status(500).json({ error: err.message });
