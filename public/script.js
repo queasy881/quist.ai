@@ -1017,11 +1017,15 @@ async function sendMessage(userText = null) {
   }
 
   // If a file preview was already added, do NOT add another user message
+// Add user message ONCE
 if (!state.pendingFile) {
-  const userMessage = { role: "user", content: messageContent, time: now() };
-  addMessage(userMessage);
-  state.chats[state.currentChat].messages.push(userMessage);
+  addMessage({
+    role: "user",
+    content: messageContent,
+    time: now()
+  });
 }
+
 
   
   if (!state.chats[state.currentChat].firstUserMessage) {
@@ -1207,11 +1211,14 @@ if (detected.hasCode) {
   aiContent = minimalFormatting(aiContent);
 }
 
-    const aiMessage = { role: "assistant", content: aiContent, time: now() };
-    
-    addMessage(aiMessage);
-    state.chats[state.currentChat].messages.push(aiMessage);
-    saveChats();
+    const aiMessage = {
+  role: "assistant",
+  content: aiContent,
+  time: now()
+};
+
+addMessage(aiMessage);
+
 
     if (!state.chats[state.currentChat].titled && state.chats[state.currentChat].firstUserMessage) {
       const title = generateChatTitle(state.chats[state.currentChat].firstUserMessage);
@@ -1422,23 +1429,13 @@ function setupWelcomeScreen() {
 
 function sendMessageFromWelcomeScreen(text) {
   elements.welcomeInput.value = "";
-  elements.welcomeScreen.style.display = "none";
-  elements.chat.style.display = "block";
-  
-  const userMessage = { role: "user", content: text, time: now() };
-  addMessage(userMessage);
-  
-  if (!state.chats[state.currentChat]) {
-    state.currentChat = createChat();
-  }
-  
-  state.chats[state.currentChat].messages.push(userMessage);
-  state.chats[state.currentChat].firstUserMessage = text;
-  saveChats();
-  
-  // Trigger AI response
-  sendMessage(text);
+
+  // Hand off to main sendMessage ONLY
+  elements.input.value = text;
+  updateWelcomeVisibility();
+  sendMessage();
 }
+
 
 /* =======================
    FILE UPLOAD
