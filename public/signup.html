@@ -37,6 +37,35 @@
     </div>
   </div>
 
+  <!-- EMAIL VERIFICATION -->
+<div id="verificationModal" class="verification-modal hidden">
+
+  <div class="verification-box">
+
+    <h2>Verify your email</h2>
+
+    <p>We’ve sent a 6-digit code to:</p>
+    <strong id="displayEmail"></strong>
+
+    <input
+      type="text"
+      id="verificationCode"
+      placeholder="Enter verification code"
+      maxlength="6"
+    />
+
+    <button id="verifyCodeBtn">Verify</button>
+    <button id="resendCodeBtn">Resend code</button>
+
+    <div id="verificationError" class="auth-error hidden"></div>
+    <div id="verificationSuccess" class="auth-success hidden">
+      Email verified successfully!
+    </div>
+
+  </div>
+</div>
+
+
   <script>
     document.getElementById("signupBtn").onclick = async () => {
       const email = document.getElementById("signupEmail").value.trim();
@@ -71,12 +100,14 @@
         return;
       }
 
-      localStorage.setItem("loggedIn", "true");
-      localStorage.setItem("userEmail", email);
+     document.getElementById("displayEmail").textContent = email;
+document.getElementById("verificationModal").classList.remove("hidden");
+sendVerificationCode(email);
 
-      window.location.href = "/";
     };
   </script>
+  <script src="verification.js"></script>
+
 
 </body>
 </html>
