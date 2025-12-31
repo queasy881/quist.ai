@@ -319,501 +319,443 @@
   </div>
 </div>
 
-<!-- SETTINGS MODAL - UPDATED WITH CATEGORIES -->
+<!-- SETTINGS MODAL -->
 <div id="settings" class="settings hidden">
   <div class="modal-content">
-    <div class="settings-header">
-      <h3>⚙️ Settings</h3>
-      <button id="closeSettings" class="close-settings-btn">✕</button>
+    <h3>⚙️ Settings</h3>
+    
+    <!-- AI Model & Parameters -->
+    <div class="settings-section">
+      <h4>🤖 Model & Parameters</h4>
+      
+      <div class="setting-row">
+        <div class="setting-header">
+          <div class="setting-label">AI Model</div>
+          <div class="setting-value" id="modelDisplay">Claude 3 Haiku</div>
+        </div>
+        <p class="setting-description">Choose the AI model for responses</p>
+        <select id="modelSelect">
+          <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fast)</option>
+          <option value="claude-3-sonnet-20240229">Claude 3 Sonnet (Balanced)</option>
+          <option value="claude-3-opus-20240229">Claude 3 Opus (Best)</option>
+        </select>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-header">
+          <div class="setting-label">Temperature</div>
+          <div class="setting-value" id="temperatureValue">0.3</div>
+        </div>
+        <p class="setting-description">Controls randomness in responses (0 = precise, 1 = creative)</p>
+        <div class="slider-wrapper">
+          <div class="slider-track">
+            <div class="slider-progress" id="temperatureProgress"></div>
+          </div>
+          <input type="range" id="temperature" min="0" max="20" value="3">
+          <div class="slider-labels">
+            <span>Precise</span>
+            <span>Balanced</span>
+            <span>Creative</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-header">
+          <div class="setting-label">Max Tokens</div>
+          <div class="setting-value" id="maxTokensValue">4096</div>
+        </div>
+        <p class="setting-description">Maximum length of AI responses</p>
+        <div class="slider-wrapper">
+          <div class="slider-track">
+            <div class="slider-progress" id="maxTokensProgress"></div>
+          </div>
+          <input type="range" id="maxTokens" min="512" max="8192" step="256" value="4096">
+          <div class="slider-labels">
+            <span>512</span>
+            <span>4096</span>
+            <span>8192</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Context Window</div>
+        <p class="setting-description">Memory size for conversation history</p>
+        <select id="contextWindow">
+          <option value="small">Small (4K tokens)</option>
+          <option value="medium" selected>Medium (8K tokens)</option>
+          <option value="large">Large (16K tokens)</option>
+          <option value="xlarge">Extra Large (32K tokens)</option>
+        </select>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Response Format</div>
+        <p class="setting-description">How AI responses are formatted</p>
+        <select id="responseFormat">
+          <option value="markdown" selected>Markdown</option>
+          <option value="plain">Plain Text</option>
+          <option value="html">HTML</option>
+        </select>
+      </div>
     </div>
     
-    <!-- Settings Categories -->
-    <div class="settings-categories">
-      <button class="settings-category active" data-category="models">
-        <span class="category-icon">🤖</span>
-        <span class="category-text">Models</span>
-      </button>
-      <button class="settings-category" data-category="parameters">
-        <span class="category-icon">🎛️</span>
-        <span class="category-text">Parameters</span>
-      </button>
-      <button class="settings-category" data-category="appearance">
-        <span class="category-icon">🎨</span>
-        <span class="category-text">Appearance</span>
-      </button>
-      <button class="settings-category" data-category="audio">
-        <span class="category-icon">🔊</span>
-        <span class="category-text">Audio</span>
-      </button>
-      <button class="settings-category" data-category="advanced">
-        <span class="category-icon">⚡</span>
-        <span class="category-text">Advanced</span>
-      </button>
+    <!-- Appearance -->
+    <div class="settings-section">
+      <h4>🎨 Appearance</h4>
+      
+      <div class="setting-row">
+        <div class="setting-label">Accent Color</div>
+        <p class="setting-description">Primary color for UI elements</p>
+        <input type="color" id="accentColor" value="#00d4ff">
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Color Presets</div>
+        <p class="setting-description">Quick color selections</p>
+        <div class="color-presets">
+          <button class="color-preset" data-color="#00d4ff" style="background:#00d4ff"></button>
+          <button class="color-preset" data-color="#667eea" style="background:#667eea"></button>
+          <button class="color-preset" data-color="#ff6b6b" style="background:#ff6b6b"></button>
+          <button class="color-preset" data-color="#f857a6" style="background:#f857a6"></button>
+          <button class="color-preset" data-color="#2ecc71" style="background:#2ecc71"></button>
+          <button class="color-preset" data-color="#9b59b6" style="background:#9b59b6"></button>
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Background Theme</div>
+        <p class="setting-description">Overall app background style</p>
+        <select id="backgroundSelect">
+          <option value="default">Default</option>
+          <option value="quist-blue">Quist Blue</option>
+          <option value="cosmic-purple">Cosmic Purple</option>
+          <option value="ocean-blue">Ocean Blue</option>
+          <option value="sunset-orange">Sunset Orange</option>
+          <option value="forest-green">Forest Green</option>
+          <option value="midnight-blue">Midnight Blue</option>
+          <option value="dark-void">Dark Void</option>
+          <option value="cyberpunk">Cyberpunk</option>
+        </select>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Font Size</div>
+        <p class="setting-description">Text size throughout the app</p>
+        <select id="fontSizeSelect">
+          <option value="small">Small</option>
+          <option value="medium" selected>Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Animation Style</div>
+        <p class="setting-description">Transition effects for UI elements</p>
+        <select id="animationSelect">
+          <option value="slide" selected>Slide In</option>
+          <option value="fade">Fade In</option>
+          <option value="bounce">Bounce</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-label">Design Style</div>
+        <p class="setting-description">Border and corner styling</p>
+        <select id="designSelect">
+          <option value="rounded" selected>Rounded</option>
+          <option value="sharp">Sharp</option>
+          <option value="neumorphic">Neumorphic</option>
+        </select>
+      </div>
     </div>
     
-    <!-- Settings Content Areas -->
-    <div class="settings-content">
+    <!-- Thinking & Research -->
+    <div class="settings-section">
+      <h4>🧠 Thinking & Research</h4>
       
-      <!-- MODELS SECTION -->
-      <div id="modelsSection" class="settings-section active">
-        <h4>🤖 AI Model Selection</h4>
-        
-        <div class="setting-row">
-          <div class="setting-header">
-            <div class="setting-label">AI Model</div>
-            <div class="setting-value" id="modelDisplay">Claude 3 Haiku</div>
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Deep Thinking Mode</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="deepThinkingToggle">
+            <span class="toggle-slider"></span>
           </div>
-          <p class="setting-description">Choose the AI model for responses</p>
-          <select id="modelSelect" class="modern-select">
-            <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fast)</option>
-            <option value="claude-3-sonnet-20240229">Claude 3 Sonnet (Balanced)</option>
-            <option value="claude-3-opus-20240229">Claude 3 Opus (Best)</option>
-          </select>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Context Window</div>
-          <p class="setting-description">Memory size for conversation history</p>
-          <select id="contextWindow" class="modern-select">
-            <option value="small">Small (4K tokens)</option>
-            <option value="medium" selected>Medium (8K tokens)</option>
-            <option value="large">Large (16K tokens)</option>
-            <option value="xlarge">Extra Large (32K tokens)</option>
-          </select>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Response Format</div>
-          <p class="setting-description">How AI responses are formatted</p>
-          <select id="responseFormat" class="modern-select">
-            <option value="markdown" selected>Markdown</option>
-            <option value="plain">Plain Text</option>
-            <option value="html">HTML</option>
-          </select>
-        </div>
+        </label>
+        <p class="setting-description">Simulates extended AI processing with visual feedback</p>
       </div>
       
-      <!-- PARAMETERS SECTION -->
-      <div id="parametersSection" class="settings-section">
-        <h4>🎛️ Model Parameters</h4>
-        
-        <div class="setting-row">
-          <div class="setting-header">
-            <div class="setting-label">Temperature</div>
-            <div class="setting-value" id="temperatureValue">0.3</div>
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Research Internet</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="researchInternetToggle">
+            <span class="toggle-slider"></span>
           </div>
-          <p class="setting-description">Controls randomness in responses (0 = precise, 1 = creative)</p>
-          <div class="modern-slider-container">
-            <div class="slider-header">
-              <span>Precise</span>
-              <span>Creative</span>
-            </div>
-            <div class="modern-slider-wrapper">
-              <div class="slider-track">
-                <div class="slider-progress" id="temperatureProgress"></div>
-              </div>
-              <input type="range" id="temperature" class="modern-slider" min="0" max="20" value="3" aria-label="Temperature">
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-scale">
-              <span>0.0</span>
-              <span>0.5</span>
-              <span>1.0</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-header">
-            <div class="setting-label">Max Tokens</div>
-            <div class="setting-value" id="maxTokensValue">4096</div>
-          </div>
-          <p class="setting-description">Maximum length of AI responses</p>
-          <div class="modern-slider-container">
-            <div class="slider-header">
-              <span>Short</span>
-              <span>Long</span>
-            </div>
-            <div class="modern-slider-wrapper">
-              <div class="slider-track">
-                <div class="slider-progress" id="maxTokensProgress"></div>
-              </div>
-              <input type="range" id="maxTokens" class="modern-slider" min="512" max="8192" step="256" value="4096" aria-label="Max Tokens">
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-scale">
-              <span>512</span>
-              <span>4K</span>
-              <span>8K</span>
-            </div>
-          </div>
-        </div>
+        </label>
+        <p class="setting-description">Shows web research simulation before responses</p>
       </div>
       
-      <!-- APPEARANCE SECTION -->
-      <div id="appearanceSection" class="settings-section">
-        <h4>🎨 Appearance</h4>
-        
-        <div class="setting-row">
-          <div class="setting-label">Accent Color</div>
-          <p class="setting-description">Primary color for UI elements</p>
-          <div class="color-picker-container">
-            <input type="color" id="accentColor" value="#00d4ff" class="color-input">
-            <span id="colorHexValue">#00d4ff</span>
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Real-time Search</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="realTimeSearchToggle">
+            <span class="toggle-slider"></span>
           </div>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Color Presets</div>
-          <p class="setting-description">Quick color selections</p>
-          <div class="color-presets">
-            <button class="color-preset" data-color="#00d4ff" style="background:#00d4ff"></button>
-            <button class="color-preset" data-color="#667eea" style="background:#667eea"></button>
-            <button class="color-preset" data-color="#ff6b6b" style="background:#ff6b6b"></button>
-            <button class="color-preset" data-color="#f857a6" style="background:#f857a6"></button>
-            <button class="color-preset" data-color="#2ecc71" style="background:#2ecc71"></button>
-            <button class="color-preset" data-color="#9b59b6" style="background:#9b59b6"></button>
-          </div>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Background Theme</div>
-          <p class="setting-description">Overall app background style</p>
-          <select id="backgroundSelect" class="modern-select">
-            <option value="default">Default</option>
-            <option value="quist-blue">Quist Blue</option>
-            <option value="cosmic-purple">Cosmic Purple</option>
-            <option value="ocean-blue">Ocean Blue</option>
-            <option value="sunset-orange">Sunset Orange</option>
-            <option value="forest-green">Forest Green</option>
-            <option value="midnight-blue">Midnight Blue</option>
-            <option value="dark-void">Dark Void</option>
-            <option value="cyberpunk">Cyberpunk</option>
-          </select>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Font Size</div>
-          <p class="setting-description">Text size throughout the app</p>
-          <select id="fontSizeSelect" class="modern-select">
-            <option value="small">Small</option>
-            <option value="medium" selected>Medium</option>
-            <option value="large">Large</option>
-          </select>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Animation Style</div>
-          <p class="setting-description">Transition effects for UI elements</p>
-          <select id="animationSelect" class="modern-select">
-            <option value="slide" selected>Slide In</option>
-            <option value="fade">Fade In</option>
-            <option value="bounce">Bounce</option>
-            <option value="none">None</option>
-          </select>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Design Style</div>
-          <p class="setting-description">Border and corner styling</p>
-          <select id="designSelect" class="modern-select">
-            <option value="rounded" selected>Rounded</option>
-            <option value="sharp">Sharp</option>
-            <option value="neumorphic">Neumorphic</option>
-          </select>
-        </div>
+        </label>
+        <p class="setting-description">Fetch current information from the web</p>
       </div>
       
-      <!-- AUDIO SECTION -->
-      <div id="audioSection" class="settings-section">
-        <h4>🔊 Audio Settings</h4>
-        
-        <div class="setting-row">
-          <div class="setting-header">
-            <div class="setting-label">Sound Volume</div>
-            <div class="setting-value" id="soundVolumeValue">70%</div>
+      <div class="setting-row">
+        <div class="setting-header">
+          <div class="setting-label">Typing Speed</div>
+          <div class="setting-value" id="typingSpeedValue">2</div>
+        </div>
+        <p class="setting-description">Speed of typing indicator animation</p>
+        <div class="slider-wrapper">
+          <div class="slider-track">
+            <div class="slider-progress" id="typingSpeedProgress"></div>
           </div>
-          <p class="setting-description">Overall volume for all sound effects</p>
-          <div class="modern-slider-container">
-            <div class="slider-header">
-              <span>Mute</span>
-              <span>Max</span>
-            </div>
-            <div class="modern-slider-wrapper">
-              <div class="slider-track">
-                <div class="slider-progress" id="soundVolumeProgress"></div>
-              </div>
-              <input type="range" id="soundVolume" class="modern-slider" min="0" max="100" value="70" aria-label="Sound Volume">
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-scale">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
-            </div>
+          <input type="range" id="typingSpeed" min="1" max="5" value="2" step="1">
+          <div class="slider-labels">
+            <span>Slow</span>
+            <span>Fast</span>
           </div>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Sound Toggles</div>
-          <p class="setting-description">Enable/disable individual sound effects</p>
-          <div class="sound-toggle-grid">
-            <div class="sound-toggle">
-              <label>
-                <span>Message Sent</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundMessageSent" checked>
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Message Received</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundMessageReceived" checked>
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Typing</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundTyping">
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Success</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundSuccess" checked>
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Error</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundError" checked>
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Thinking</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundThinking">
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Research</span>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="soundResearch">
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Enable All Sounds</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="soundToggle">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Master switch for all sound effects</p>
-        </div>
-      </div>
-      
-      <!-- ADVANCED SECTION -->
-      <div id="advancedSection" class="settings-section">
-        <h4>⚡ Advanced Features</h4>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Deep Thinking Mode</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="deepThinkingToggle">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Simulates extended AI processing with visual feedback</p>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Research Internet</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="researchInternetToggle">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Shows web research simulation before responses</p>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Real-time Search</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="realTimeSearchToggle">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Fetch current information from the web</p>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Particle Effects</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="particleEffectsToggle">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Background particle animations</p>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Gradient Text</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="gradientTextToggle">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Gradient colors in AI responses</p>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-header">
-            <div class="setting-label">Typing Speed</div>
-            <div class="setting-value" id="typingSpeedValue">2</div>
-          </div>
-          <p class="setting-description">Speed of typing indicator animation</p>
-          <div class="modern-slider-container">
-            <div class="slider-header">
-              <span>Slow</span>
-              <span>Fast</span>
-            </div>
-            <div class="modern-slider-wrapper">
-              <div class="slider-track">
-                <div class="slider-progress" id="typingSpeedProgress"></div>
-              </div>
-              <input type="range" id="typingSpeed" class="modern-slider" min="1" max="5" value="2" step="1" aria-label="Typing Speed">
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-scale">
-              <span>1</span>
-              <span>3</span>
-              <span>5</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-header">
-            <div class="setting-label">Animation Speed</div>
-            <div class="setting-value" id="animationSpeedValue">1.0x</div>
-          </div>
-          <p class="setting-description">Speed multiplier for all animations</p>
-          <div class="modern-slider-container">
-            <div class="slider-header">
-              <span>Slow</span>
-              <span>Fast</span>
-            </div>
-            <div class="modern-slider-wrapper">
-              <div class="slider-track">
-                <div class="slider-progress" id="animationSpeedProgress"></div>
-              </div>
-              <input type="range" id="animationSpeed" class="modern-slider" min="0.5" max="3" value="1" step="0.1" aria-label="Animation Speed">
-              <div class="slider-thumb"></div>
-            </div>
-            <div class="slider-scale">
-              <span>0.5x</span>
-              <span>1.5x</span>
-              <span>3.0x</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="setting-row">
-          <div class="setting-label">Message Animation</div>
-          <p class="setting-description">Animation style for chat messages</p>
-          <select id="messageAnimation" class="modern-select">
-            <option value="slide">Slide In</option>
-            <option value="fade">Fade In</option>
-            <option value="bounce">Bounce</option>
-            <option value="typewriter">Typewriter</option>
-            <option value="glitch">Glitch Effect</option>
-            <option value="hologram">Hologram</option>
-            <option value="none">None</option>
-          </select>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Compact Mode</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="compactMode">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Reduced spacing for more content</p>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Auto-Copy Code</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="autoCopyCode">
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Automatically copy code blocks</p>
-        </div>
-        
-        <div class="settings-toggle">
-          <label>
-            <span class="setting-label">Typing Indicator</span>
-            <div class="toggle-switch">
-              <input type="checkbox" id="typingIndicator" checked>
-              <span class="toggle-slider"></span>
-            </div>
-          </label>
-          <p class="setting-description">Show when AI is responding</p>
-        </div>
-        
-        <div class="data-management">
-          <button id="exportChat">
-            <span>📤</span>
-            <span>Export Current Chat</span>
-          </button>
-          <button id="importChat">
-            <span>📥</span>
-            <span>Import Chat</span>
-          </button>
-          <button id="backupChats">
-            <span>💾</span>
-            <span>Backup All Chats</span>
-          </button>
-          <button id="resetSettings">
-            <span>🔄</span>
-            <span>Reset Settings</span>
-          </button>
         </div>
       </div>
     </div>
+    
+    <!-- Sound Effects -->
+    <div class="settings-section">
+      <h4>🔊 Sound Effects</h4>
+      
+      <div class="setting-row">
+        <div class="setting-label">Sound Toggles</div>
+        <p class="setting-description">Enable/disable individual sound effects</p>
+        <div class="sound-toggle-grid">
+          <div class="sound-toggle">
+            <label>
+              <span>Message Sent</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundMessageSent" checked>
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="sound-toggle">
+            <label>
+              <span>Message Received</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundMessageReceived" checked>
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="sound-toggle">
+            <label>
+              <span>Typing</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundTyping">
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="sound-toggle">
+            <label>
+              <span>Success</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundSuccess" checked>
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="sound-toggle">
+            <label>
+              <span>Error</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundError" checked>
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="sound-toggle">
+            <label>
+              <span>Thinking</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundThinking">
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="sound-toggle">
+            <label>
+              <span>Research</span>
+              <div class="toggle-switch">
+                <input type="checkbox" id="soundResearch">
+                <span class="toggle-slider"></span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-header">
+          <div class="setting-label">Sound Volume</div>
+          <div class="setting-value" id="soundVolumeValue">70%</div>
+        </div>
+        <p class="setting-description">Overall volume for all sound effects</p>
+        <div class="slider-wrapper">
+          <div class="slider-track">
+            <div class="slider-progress" id="soundVolumeProgress"></div>
+          </div>
+          <input type="range" id="soundVolume" min="0" max="100" value="70">
+          <div class="slider-labels">
+            <span>0%</span>
+            <span>100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Animation & Effects -->
+    <div class="settings-section">
+      <h4>✨ Animation & Effects</h4>
+      
+      <div class="setting-row">
+        <div class="setting-label">Message Animation</div>
+        <p class="setting-description">Animation style for chat messages</p>
+        <select id="messageAnimation">
+          <option value="slide">Slide In</option>
+          <option value="fade">Fade In</option>
+          <option value="bounce">Bounce</option>
+          <option value="typewriter">Typewriter</option>
+          <option value="glitch">Glitch Effect</option>
+          <option value="hologram">Hologram</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+      
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Particle Effects</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="particleEffectsToggle">
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="setting-description">Background particle animations</p>
+      </div>
+      
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Gradient Text</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="gradientTextToggle">
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="setting-description">Gradient colors in AI responses</p>
+      </div>
+      
+      <div class="setting-row">
+        <div class="setting-header">
+          <div class="setting-label">Animation Speed</div>
+          <div class="setting-value" id="animationSpeedValue">1.0x</div>
+        </div>
+        <p class="setting-description">Speed multiplier for all animations</p>
+        <div class="slider-wrapper">
+          <div class="slider-track">
+            <div class="slider-progress" id="animationSpeedProgress"></div>
+          </div>
+          <input type="range" id="animationSpeed" min="0.5" max="3" value="1" step="0.1">
+          <div class="slider-labels">
+            <span>0.5x</span>
+            <span>1.0x</span>
+            <span>3.0x</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Features -->
+    <div class="settings-section">
+      <h4>⚡ Features</h4>
+      
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Sound Effects</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="soundToggle">
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="setting-description">Enable all sound effects</p>
+      </div>
+      
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Compact Mode</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="compactMode">
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="setting-description">Reduced spacing for more content</p>
+      </div>
+      
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Auto-Copy Code</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="autoCopyCode">
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="setting-description">Automatically copy code blocks</p>
+      </div>
+      
+      <div class="settings-toggle">
+        <label>
+          <span class="setting-label">Typing Indicator</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="typingIndicator" checked>
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="setting-description">Show when AI is responding</p>
+      </div>
+    </div>
+    
+    <!-- Data Management -->
+    <div class="settings-section">
+      <h4>💾 Data Management</h4>
+      <p class="setting-description">Manage your chat data and settings</p>
+      
+      <div class="data-management">
+        <button id="exportChat">
+          <span>📤</span>
+          <span>Export Current Chat</span>
+        </button>
+        <button id="importChat">
+          <span>📥</span>
+          <span>Import Chat</span>
+        </button>
+        <button id="backupChats">
+          <span>💾</span>
+          <span>Backup All Chats</span>
+        </button>
+        <button id="resetSettings">
+          <span>🔄</span>
+          <span>Reset Settings</span>
+        </button>
+      </div>
+    </div>
+    
+    <button id="closeSettings">Save & Close</button>
   </div>
 </div>
 
