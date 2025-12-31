@@ -151,8 +151,14 @@
       );
 
       setTimeout(() => {
-        window.location.href = "";
-      }, 1000);
+  localStorage.setItem("loggedIn", "true");
+  localStorage.setItem(
+    "userEmail",
+    localStorage.getItem("pendingVerificationEmail")
+  );
+  window.location.href = "/";
+}, 1000);
+
     };
 
     document.getElementById("resendCodeBtn").onclick = () => {
