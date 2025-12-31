@@ -113,7 +113,10 @@ ${description}
 
 `;
 
+
+
     const filePath = path.join(process.cwd(), "bug-reports.txt");
+console.log("BUG REPORT RECEIVED:\n", report);
 
     fs.appendFile(filePath, report, (err) => {
       if (err) {
