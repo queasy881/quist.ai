@@ -56,16 +56,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // =======================
 app.post("/api/chat", async (req, res) => {
   try {
+        console.log("=== REQUEST BODY ===");
+    console.log(JSON.stringify(req.body, null, 2));
+    console.log("=== END REQUEST ===");
     const { messages, model = "claude-3-5-sonnet-20241022", max_tokens = 4096, temperature = 0.7 } = req.body;
 
     if (!Array.isArray(messages)) {
       return res.status(400).json({ error: "Invalid messages" });
     }
 
-    // Format messages properly for Claude API
+    // Claude API expects messages in this specific format
     const formattedMessages = messages.map(m => ({
       role: m.role,
-      content: typeof m.content === "string" ? m.content : String(m.content)
+      content: m.content || ""
     }));
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -80,23 +83,26 @@ app.post("/api/chat", async (req, res) => {
         max_tokens: max_tokens,
         temperature: temperature,
         messages: formattedMessages,
-        system: "You are Quist, an advanced AI assistant. Be helpful, clear, and accurate."
+        system: "You are Quist, an advanced AI assistant."
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Claude API error:", errorText);
-      return res.status(response.status).json({ 
-        error: `Claude API error: ${response.status}`,
-        details: errorText
+    const data = await response.json();
+    
+    console.log("Claude API response:", JSON.stringify(data, null, 2));
+
+    if (data.error) {
+      console.error("Claude API error:", data.error);
+      return res.status(400).json({ 
+        error: data.error.message || "Claude API error",
+        type: data.error.type 
       });
     }
 
-    const data = await response.json();
-    
-    // Claude API returns content in a specific format
-    const aiContent = data?.content?.[0]?.text || "I apologize, but I couldn't generate a response.";
+    // Claude returns text in data.content[0].text
+    const aiContent = data.content && data.content[0] && data.content[0].text 
+      ? data.content[0].text 
+      : "I apologize, but I couldn't generate a response.";
 
     res.json({
       reply: aiContent,
