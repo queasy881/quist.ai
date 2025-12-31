@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import Database from "better-sqlite3";
 import { Resend } from "resend";
+import bcrypt from "bcrypt";
 
 dotenv.config();
 
@@ -13,18 +14,34 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 // =======================
 app.use(express.json());
+
+app.get("/signin", (req, res) => {
+  res.sendFile(process.cwd() + "/public/signin.html");
+});
+
 app.use(express.static("public"));
 
 // =======================
-// SQLite (Bug Reports)
+// SQLite Database
 // =======================
-const db = new Database("bug-reports.db");
+const db = new Database("app.db");
 
+// ---- Bug Reports Table ----
 db.prepare(`
   CREATE TABLE IF NOT EXISTS bug_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+// ---- Users Table ----
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
@@ -50,19 +67,19 @@ app.post("/api/chat", async (req, res) => {
       headers: {
         "Content-Type": "application/json",
         "x-api-key": process.env.CLAUDE_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 4096,
-        messages,
-      }),
+        messages
+      })
     });
 
     const data = await response.json();
 
     res.json({
-      reply: data?.content?.[0]?.text || "No response",
+      reply: data?.content?.[0]?.text || "No response"
     });
   } catch (err) {
     console.error("Chat error:", err);
@@ -71,7 +88,7 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // =======================
-// VERIFICATION EMAIL
+// EMAIL VERIFICATION
 // =======================
 app.post("/api/send-verification", async (req, res) => {
   try {
@@ -89,7 +106,7 @@ app.post("/api/send-verification", async (req, res) => {
         <h2>Email Verification</h2>
         <p>Your verification code is:</p>
         <h1>${code}</h1>
-      `,
+      `
     });
 
     if (error) {
@@ -105,7 +122,73 @@ app.post("/api/send-verification", async (req, res) => {
 });
 
 // =======================
-// BUG REPORT (SQLite)
+// SIGN UP
+// =======================
+app.post("/api/signup", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+
+    const stmt = db.prepare(
+      "INSERT INTO users (email, password_hash) VALUES (?, ?)"
+    );
+
+    stmt.run(email.toLowerCase(), hash);
+
+    res.json({ success: true });
+  } catch (err) {
+    if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    console.error("Signup error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// =======================
+// LOGIN
+// =======================
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+
+    const user = db.prepare(
+      "SELECT * FROM users WHERE email = ?"
+    ).get(email.toLowerCase());
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid credentials" });
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+
+    if (!valid) {
+      return res.status(400).json({ error: "Invalid credentials" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// =======================
+// BUG REPORT
 // =======================
 app.post("/api/report-bug", (req, res) => {
   try {
@@ -115,14 +198,11 @@ app.post("/api/report-bug", (req, res) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    const stmt = db.prepare(
+    db.prepare(
       "INSERT INTO bug_reports (title, description) VALUES (?, ?)"
-    );
-
-    stmt.run(title, description);
+    ).run(title, description);
 
     console.log("Bug report saved:", title);
-
     res.json({ success: true });
   } catch (err) {
     console.error("Bug report error:", err);
@@ -131,7 +211,7 @@ app.post("/api/report-bug", (req, res) => {
 });
 
 // =======================
-// (OPTIONAL) ADMIN VIEW
+// ADMIN: VIEW BUGS
 // =======================
 app.get("/api/admin/bug-reports", (req, res) => {
   const reports = db

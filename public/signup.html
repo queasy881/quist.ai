@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sign Up – Quist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-card">
+
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-subtitle">Join Quist in seconds</p>
+
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" />
+      </div>
+
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="signupPassword" placeholder="At least 8 characters" />
+      </div>
+
+      <button id="signupBtn" class="auth-btn">Sign Up</button>
+
+      <div id="signupError" class="auth-error hidden"></div>
+
+      <div class="auth-footer">
+        <span>Already have an account?</span>
+        <a href="signin.html">Sign in</a>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("signupBtn").onclick = async () => {
+      const email = document.getElementById("signupEmail").value.trim();
+      const password = document.getElementById("signupPassword").value;
+      const errorBox = document.getElementById("signupError");
+
+      errorBox.classList.add("hidden");
+
+      if (!email || !password) {
+        errorBox.textContent = "Please fill in all fields";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      if (password.length < 8) {
+        errorBox.textContent = "Password must be at least 8 characters";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorBox.textContent = data.error || "Sign up failed";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      localStorage.setItem("loggedIn", "true");
+      localStorage.setItem("userEmail", email);
+
+      window.location.href = "/";
+    };
+  </script>
+
+</body>
+</html>
