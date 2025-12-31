@@ -2398,12 +2398,18 @@ body.tos-page {
 }
 
 .bug-link {
+  position: fixed;
+  top: 48px; /* directly under Terms of Service */
+  right: 80px;
+  z-index: 200;
+
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.65);
   text-decoration: none;
   padding: 6px 10px;
   border-radius: 8px;
+
   background: rgba(255, 100, 100, 0.08);
   backdrop-filter: blur(8px);
   transition: all 0.2s ease;
@@ -2414,5 +2420,4 @@ body.tos-page {
   background: rgba(255, 100, 100, 0.18);
   box-shadow: 0 0 14px rgba(255, 80, 80, 0.45);
 }
-
 
