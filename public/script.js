@@ -177,7 +177,8 @@ let state = {
   chats: JSON.parse(localStorage.getItem("chats")) || {},
   currentChat: null,
   pendingFiles: [], // Changed from pendingFile to pendingFiles array
-  userEmail: localStorage.getItem("verifiedEmail") || null,
+  userEmail: localStorage.getItem("userEmail") || localStorage.getItem("verifiedEmail"),
+
   username: localStorage.getItem("username") || null,
   isVerified: false,
   isResearching: false,
@@ -1988,12 +1989,12 @@ function showNotification(message) {
    INITIALIZATION
 ======================= */
 function init() {
-  checkVerification();
+ 
   //applySettings();
   setupEventListeners();
   setupWelcomeScreen(); 
   loadChat(state.currentChat);
-  checkVerification();
+ 
   updateStats();
   updateUserDisplay();
   applySettings();
@@ -2009,4 +2010,8 @@ function init() {
 }
 
 // Start the app
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  updateUserDisplay();
+  checkVerification();
+});
+
