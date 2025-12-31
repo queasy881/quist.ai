@@ -333,15 +333,9 @@ function cancelResearch() {
    EMAIL VERIFICATION
 ======================= */
 function checkVerification() {
-  if (state.userEmail && state.username) {
-    state.isVerified = true;
-    elements.verificationModal.classList.add("hidden");
-    updateUserDisplay();
-    return true;
-  }
-  elements.verificationModal.classList.remove("hidden");
-  return false;
+  return; // TEMP: disable verification lock
 }
+
 
 function updateUserDisplay() {
   if (elements.displayUsername && state.username) {
