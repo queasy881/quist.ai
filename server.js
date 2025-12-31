@@ -58,6 +58,17 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { messages } = req.body;
 
+const formattedMessages = messages.map(m => ({
+  role: m.role,
+  content: [
+    {
+      type: "text",
+      text: String(m.content ?? "")
+    }
+  ]
+}));
+
+
     if (!Array.isArray(messages)) {
       return res.status(400).json({ error: "Invalid messages" });
     }
@@ -69,11 +80,12 @@ app.post("/api/chat", async (req, res) => {
         "x-api-key": process.env.CLAUDE_API_KEY,
         "anthropic-version": "2023-06-01"
       },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 4096,
-        messages
-      })
+body: JSON.stringify({
+  model: "claude-3-5-sonnet-20241022",
+  max_tokens: 4096,
+  messages: formattedMessages
+})
+
     });
 
     const data = await response.json();
