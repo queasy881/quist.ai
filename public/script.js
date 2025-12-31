@@ -1163,39 +1163,40 @@ const messagesToSend = state.chats[state.currentChat].messages
 
   try {
     const response = await fetch(BACKEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: state.settings.model,
-        messages: messagesToSend,
-        max_tokens: state.settings.maxTokens,
-        temperature: state.settings.temperature
-      })
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    model: state.settings.model,
+    messages: messagesToSend,
+    max_tokens: state.settings.maxTokens,
+    temperature: state.settings.temperature
+  })
+});
 
-    if (!response.ok) {
-      throw new Error(`Server error ${response.status}`);
-    }
+if (!response.ok) {
+  throw new Error(`Server error ${response.status}`);
+}
 
-    let aiContent = "";
+const data = await response.json();
+
+let aiContent = "";
 
 if (typeof data.reply === "string" && data.reply.trim().length > 0) {
   aiContent = data.reply;
 
 } else if (data.content && Array.isArray(data.content)) {
-  // Anthropic-style fallback
   aiContent = data.content[0]?.text || "";
 
 } else if (data.choices?.[0]?.message) {
-  // OpenAI-style fallback
   aiContent = data.choices[0].message.content;
 
 } else if (data.text) {
   aiContent = data.text;
 
 } else {
-  aiContent = "⚠️ The AI did not return a response. Please try again.";
+  aiContent = "⚠️ The AI did not return a response.";
 }
+
 
 
 
