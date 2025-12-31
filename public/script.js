@@ -333,7 +333,12 @@ function cancelResearch() {
    EMAIL VERIFICATION
 ======================= */
 function checkVerification() {
-  return; // TEMP: disable verification lock
+  if (state.isVerified || state.userEmail) {
+    elements.verificationModal.classList.add("hidden");
+    updateUserDisplay();
+  } else {
+    elements.verificationModal.classList.remove("hidden");
+  }
 }
 
 
@@ -1996,7 +2001,7 @@ function showNotification(message) {
 ======================= */
 function init() {
   checkVerification();
-  applySettings();
+  //applySettings();
   setupEventListeners();
   setupWelcomeScreen(); 
   loadChat(state.currentChat);
