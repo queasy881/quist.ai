@@ -1223,7 +1223,7 @@ CODE RULES
 FILE CONTEXT
 ${state.pendingFiles.length > 0 ? `
 The user has uploaded ${state.pendingFiles.length} file(s):
-${state.pendingFiles.map((file, i) => `${i + 1}. ${file.name} (${formatFileSize(file.size)})${file.content ? '\n' + file.content.substring(0, 1000) + (file.content.length > 1000 ? '...' : '') : ''}`).join('\n')}
+${state.pendingFiles.map((file, i) => `${i + 1}. ${file.name} (${formatFileSize(file.size)})${file.content ? '\n' + file.content + (file.content.length > 1000 ? '...' : '') : ''}`).join('\n')}
 ` : ''}
 ${systemPromptAddition}
 
