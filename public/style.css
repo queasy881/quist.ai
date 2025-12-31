@@ -2379,4 +2379,9 @@ body.compact-mode .modern-headline {
   background: rgba(0, 212, 255, 0.15);
   box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
 }
+/* Allow scrolling on standalone pages like TOS */
+body.tos-page {
+  height: auto;
+  overflow-y: auto;
+}
 
