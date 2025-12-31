@@ -929,14 +929,17 @@ function removeFileFromPreview(index) {
   renderFilePreviews();
   showFilePreviewArea();
 }
-
-function clearAllFiles() {
+function clearAllFiles(silent = false) {
   state.pendingFiles = [];
   renderFilePreviews();
   showFilePreviewArea();
-  showNotification("All files cleared");
-  playSound('success');
+
+  if (!silent) {
+    showNotification("All files cleared");
+    playSound("success");
+  }
 }
+
 
 function renderFilePreviews() {
   elements.filePreviews.innerHTML = "";
@@ -1174,12 +1177,9 @@ const messagesToSend = state.chats[state.currentChat].messages
       throw new Error(`Server error ${response.status}`);
     }
 
-    const data = await response.json();
-
     let aiContent = "";
 
-if (data.reply) {
-  // ✅ YOUR BACKEND FORMAT
+if (typeof data.reply === "string" && data.reply.trim().length > 0) {
   aiContent = data.reply;
 
 } else if (data.content && Array.isArray(data.content)) {
@@ -1192,7 +1192,11 @@ if (data.reply) {
 
 } else if (data.text) {
   aiContent = data.text;
+
+} else {
+  aiContent = "⚠️ The AI did not return a response. Please try again.";
 }
+
 
 
     const detected = detectCode(aiContent);
@@ -1245,7 +1249,8 @@ if (data.reply) {
     hideResearchModal();
 
     // Clear pending files after sending
-    clearAllFiles();
+    clearAllFiles(true);
+
     saveChats();
     playSound("success");
   }
