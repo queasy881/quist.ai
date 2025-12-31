@@ -1230,7 +1230,13 @@ Verify grammar, formatting, and clarity silently.
     },
     ...state.chats[state.currentChat].messages
       .slice(-15)
-      .map(m => ({ role: m.role, content: m.content }))
+      .map(m => ({
+  role: m.role,
+  content: typeof m.content === "string"
+    ? m.content.replace(/<[^>]*>/g, "")
+    : String(m.content)
+}))
+
   ];
 
   try {
