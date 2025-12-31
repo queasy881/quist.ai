@@ -352,43 +352,39 @@ function updateUserDisplay() {
 }
 
 async function sendVerificationCode() {
-  const email = elements.verificationEmail.value.trim();
-  
-  if (!email || !email.includes("@")) {
-    showVerificationError("Please enter a valid email address");
+  const email = document.getElementById("emailInput").value.trim();
+
+  if (!email) {
+    showError("Please enter an email address");
     return;
   }
-  
-  elements.sendCodeBtn.disabled = true;
-  elements.sendCodeBtn.textContent = "Sending...";
-  
-  try {
-    const res = await fetch(`${VERIFICATION_URL}/send-verification`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
+
+  // ✅ generate 6-digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // store it temporarily (you already do this elsewhere)
+  state.verificationCode = code;
+  state.userEmail = email;
+
+  fetch("/api/send-verification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }) // ✅ FIX IS HERE
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        showSuccess("Verification code sent");
+        showCodeInput(); // whatever you already use
+      } else {
+        showError("Failed to send code");
+      }
+    })
+    .catch(() => {
+      showError("Network error");
     });
-    
-    const data = await res.json();
-    
-    if (data.success) {
-      elements.emailStep.classList.add("hidden");
-      elements.codeStep.classList.remove("hidden");
-      elements.displayEmail.textContent = email;
-      showVerificationSuccess("Verification code sent! Check your email.");
-      state.userEmail = email;
-    } else {
-      showVerificationError(data.error || "Failed to send verification code");
-      elements.sendCodeBtn.disabled = false;
-      elements.sendCodeBtn.textContent = "📧 Send Verification Code";
-    }
-  } catch (error) {
-    console.error("Verification error:", error);
-    showVerificationError("Network error. Please check your connection.");
-    elements.sendCodeBtn.disabled = false;
-    elements.sendCodeBtn.textContent = "📧 Send Verification Code";
-  }
 }
+
 
 async function verifyCode() {
   const code = elements.verificationCode.value.trim();
