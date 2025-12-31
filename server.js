@@ -15,11 +15,52 @@ const PORT = process.env.PORT || 3000;
 // =======================
 app.use(express.json());
 
+// =======================
+// CORS Middleware - ADDED
+// =======================
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// =======================
+// Authentication Routes
+// =======================
 app.get("/signin", (req, res) => {
   res.sendFile(process.cwd() + "/public/signin.html");
 });
 
+app.get("/signup", (req, res) => {
+  res.sendFile(process.cwd() + "/public/signup.html");
+});
+
+// =======================
+// Static Files
+// =======================
 app.use(express.static("public"));
+
+// =======================
+// Root Route - ADDED
+// =======================
+app.get("/", (req, res) => {
+  res.sendFile(process.cwd() + "/public/index.html");
+});
+
+// =======================
+// Health Check - ADDED
+// =======================
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    message: "Quist AI API is running"
+  });
+});
 
 // =======================
 // SQLite Database
@@ -52,17 +93,27 @@ db.prepare(`
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // =======================
-// CHAT ENDPOINT
+// CHAT ENDPOINT - IMPROVED
 // =======================
 app.post("/api/chat", async (req, res) => {
   try {
-        console.log("=== REQUEST BODY ===");
-    console.log(JSON.stringify(req.body, null, 2));
-    console.log("=== END REQUEST ===");
+    console.log("=== CHAT API CALLED ===");
+    console.log("Request body:", req.body);
+    
     const { messages, model = "claude-3-5-sonnet-20241022", max_tokens = 4096, temperature = 0.7 } = req.body;
 
     if (!Array.isArray(messages)) {
-      return res.status(400).json({ error: "Invalid messages" });
+      return res.status(400).json({ 
+        error: "Invalid messages format. Expected an array of messages." 
+      });
+    }
+
+    // Check for Claude API key
+    if (!process.env.CLAUDE_API_KEY) {
+      console.error("Missing CLAUDE_API_KEY environment variable");
+      return res.status(500).json({ 
+        error: "Server configuration error. Missing API key." 
+      });
     }
 
     // Claude API expects messages in this specific format
@@ -71,6 +122,8 @@ app.post("/api/chat", async (req, res) => {
       content: m.content || ""
     }));
 
+    console.log("Sending to Claude API...");
+    
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -89,11 +142,11 @@ app.post("/api/chat", async (req, res) => {
 
     const data = await response.json();
     
-    console.log("Claude API response:", JSON.stringify(data, null, 2));
-
+    console.log("Claude API response status:", response.status);
+    
     if (data.error) {
       console.error("Claude API error:", data.error);
-      return res.status(400).json({ 
+      return res.status(response.status).json({ 
         error: data.error.message || "Claude API error",
         type: data.error.type 
       });
@@ -111,7 +164,10 @@ app.post("/api/chat", async (req, res) => {
 
   } catch (err) {
     console.error("Chat error:", err);
-    res.status(500).json({ error: "Chat failed: " + err.message });
+    res.status(500).json({ 
+      error: "Chat failed: " + err.message,
+      details: "Check server logs for more information"
+    });
   }
 });
 
