@@ -183,8 +183,19 @@ let state = {
   isVerified: false,
   isResearching: false,
   isThinking: false,
-  settings: {}
+  settings: {
+    model: "claude-3-5-sonnet-20241022",
+    maxTokens: 4096,
+    temperature: 0.7,
+    typingIndicator: true,
+    soundEnabled: true,
+    soundVolume: 70,
+    deepThinkingMode: false,
+    researchInternet: false
+  }
 };
+
+
 
 // Initialize current chat
 state.currentChat = Object.keys(state.chats)[0] || createChat();
@@ -1166,10 +1177,10 @@ const messagesToSend = state.chats[state.currentChat].messages
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    model: state.settings.model,
+    model: state.settings.model || "claude-3-5-sonnet-20241022",
     messages: messagesToSend,
-    max_tokens: state.settings.maxTokens,
-    temperature: state.settings.temperature
+    max_tokens: state.settings.maxTokens || 4096,
+    temperature: (state.settings.temperature || 3) / 10  // Convert 0-20 slider to 0.0-2.0
   })
 });
 
@@ -1179,23 +1190,8 @@ if (!response.ok) {
 
 const data = await response.json();
 
-let aiContent = "";
-
-if (typeof data.reply === "string" && data.reply.trim().length > 0) {
-  aiContent = data.reply;
-
-} else if (data.content && Array.isArray(data.content)) {
-  aiContent = data.content[0]?.text || "";
-
-} else if (data.choices?.[0]?.message) {
-  aiContent = data.choices[0].message.content;
-
-} else if (data.text) {
-  aiContent = data.text;
-
-} else {
-  aiContent = "⚠️ The AI did not return a response.";
-}
+// SIMPLIFY: Just get the reply from data.reply
+let aiContent = data.reply || "I apologize, but I couldn't generate a response.";
 
 
 
