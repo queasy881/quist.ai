@@ -355,7 +355,7 @@ async function sendVerificationCode() {
   const email = document.getElementById("verificationEmail")?.value.trim();
 
   if (!email) {
-    showError("Please enter an email address");
+    showVerificationError("Please enter an email address");
     return;
   }
 
@@ -373,15 +373,19 @@ async function sendVerificationCode() {
     const data = await res.json();
 
     if (data.success) {
-      showSuccess("Verification code sent");
-      showCodeInput();
+      showVerificationSuccess("Verification code sent");
+      elements.emailStep.classList.add("hidden");
+      elements.codeStep.classList.remove("hidden");
+      elements.displayEmail.textContent = email;
     } else {
-      showError("Failed to send verification code");
+      showVerificationError("Failed to send verification code");
     }
-  } catch {
-    showError("Network error");
+  } catch (err) {
+    console.error(err);
+    showVerificationError("Network error. Please try again.");
   }
 }
+
 
 
 
