@@ -551,17 +551,32 @@ function updateSliderProgress() {
   if (tempSlider) {
     const tempValue = (parseInt(tempSlider.value) / 10).toFixed(1);
     const tempPercent = (parseInt(tempSlider.value) / 20) * 100;
-    elements.temperatureProgress.style.width = `${tempPercent}%`;
-    document.getElementById("temperatureValue").textContent = tempValue;
+
+    if (elements.temperatureProgress) {
+      elements.temperatureProgress.style.width = `${tempPercent}%`;
+    }
+
+    const tempValueEl = document.getElementById("temperatureValue");
+    if (tempValueEl) {
+      tempValueEl.textContent = tempValue;
+    }
   }
 
   if (maxTokensSlider) {
     const maxTokensValue = parseInt(maxTokensSlider.value);
     const maxTokensPercent = ((maxTokensValue - 512) / (8192 - 512)) * 100;
-    elements.maxTokensProgress.style.width = `${maxTokensPercent}%`;
-    document.getElementById("maxTokensValue").textContent = maxTokensValue.toLocaleString();
+
+    if (elements.maxTokensProgress) {
+      elements.maxTokensProgress.style.width = `${maxTokensPercent}%`;
+    }
+
+    const maxTokensValueEl = document.getElementById("maxTokensValue");
+    if (maxTokensValueEl) {
+      maxTokensValueEl.textContent = maxTokensValue.toLocaleString();
+    }
   }
 }
+
 
 /* =======================
    CHAT MANAGEMENT
@@ -2106,7 +2121,6 @@ function showNotification(message) {
 function init() {
   checkVerification();
   applySettings();
-  setupSettingsListeners();
   setupEventListeners();
   setupWelcomeScreen(); 
   loadChat(state.currentChat);
