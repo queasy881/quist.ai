@@ -121,25 +121,26 @@ function createSound(frequency, duration, volume = 0.5) {
 }
 
 function playSound(soundName) {
-  if (!state.settings.soundEnabled) return;
-  
-  const soundToggle = elements[`sound${soundName.charAt(0).toUpperCase() + soundName.slice(1)}`];
-  if (soundToggle && !soundToggle.checked) return;
-  
+  if (!state.settings || !state.settings.soundEnabled) return;
+
+  const toggleKey = `sound${soundName.charAt(0).toUpperCase() + soundName.slice(1)}`;
+  const soundToggle = elements[toggleKey];
+
+  if (soundToggle && soundToggle.checked === false) return;
+
   const sound = soundEffects[soundName];
-  if (sound) {
-    try {
-      const volume = (state.settings.soundVolume || 70) / 100;
-      soundEffects[soundName] = createSound(
-        getFrequencyForSound(soundName),
-        getDurationForSound(soundName),
-        volume
-      );
-    } catch (error) {
-      console.warn("Failed to play sound:", error);
-    }
-  }
+  if (!sound) return;
+
+  try {
+    const volume = (state.settings.soundVolume || 70) / 100;
+    soundEffects[soundName] = createSound(
+      getFrequencyForSound(soundName),
+      getDurationForSound(soundName),
+      volume
+    );
+  } catch {}
 }
+
 
 function getFrequencyForSound(soundName) {
   switch(soundName) {
@@ -1762,7 +1763,8 @@ function applyDesignStyle(style) {
 ======================= */
 function setupSettingsTabs() {
   const tabs = document.querySelectorAll('.settings-tab');
-  const panels = document.querySelectorAll('.settings-panel');
+  const panels = document.querySelectorAll('.settings-panel[data-panel]');
+
 
   if (!tabs.length || !panels.length) return;
 
@@ -2130,4 +2132,4 @@ function init() {
 }
 
 // Start the app
-init();
+document.addEventListener("DOMContentLoaded", init);
