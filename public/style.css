@@ -2348,7 +2348,7 @@ body.compact-mode .modern-headline {
 }
 
 .settings-action:hover {
-  background: rgba(0,212,255,0.1);
+  background: #00d4ff1a;
   border-color: var(--primary);
 }
 
