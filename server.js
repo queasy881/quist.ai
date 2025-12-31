@@ -1,8 +1,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
-import fs from "fs";
-import path from "path";
+import Database from "better-sqlite3";
 import { Resend } from "resend";
 
 dotenv.config();
@@ -17,6 +16,20 @@ app.use(express.json());
 app.use(express.static("public"));
 
 // =======================
+// SQLite (Bug Reports)
+// =======================
+const db = new Database("bug-reports.db");
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS bug_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+// =======================
 // Email (Resend)
 // =======================
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -28,7 +41,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { messages } = req.body;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages)) {
       return res.status(400).json({ error: "Invalid messages" });
     }
 
@@ -73,7 +86,7 @@ app.post("/api/send-verification", async (req, res) => {
       to: email,
       subject: "Your Quist AI Verification Code",
       html: `
-        <h2>Verify Your Email</h2>
+        <h2>Email Verification</h2>
         <p>Your verification code is:</p>
         <h1>${code}</h1>
       `,
@@ -92,7 +105,7 @@ app.post("/api/send-verification", async (req, res) => {
 });
 
 // =======================
-// BUG REPORT (TXT FILE)
+// BUG REPORT (SQLite)
 // =======================
 app.post("/api/report-bug", (req, res) => {
   try {
@@ -102,34 +115,30 @@ app.post("/api/report-bug", (req, res) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    const report = `
-==============================
-Time: ${new Date().toISOString()}
-Title: ${title}
+    const stmt = db.prepare(
+      "INSERT INTO bug_reports (title, description) VALUES (?, ?)"
+    );
 
-Description:
-${description}
-==============================
+    stmt.run(title, description);
 
-`;
+    console.log("Bug report saved:", title);
 
-
-
-    const filePath = path.join(process.cwd(), "bug-reports.txt");
-console.log("BUG REPORT RECEIVED:\n", report);
-
-    fs.appendFile(filePath, report, (err) => {
-      if (err) {
-        console.error("Bug report write failed:", err);
-        return res.status(500).json({ error: "Write failed" });
-      }
-
-      res.json({ success: true });
-    });
+    res.json({ success: true });
   } catch (err) {
     console.error("Bug report error:", err);
     res.status(500).json({ error: "Server error" });
   }
+});
+
+// =======================
+// (OPTIONAL) ADMIN VIEW
+// =======================
+app.get("/api/admin/bug-reports", (req, res) => {
+  const reports = db
+    .prepare("SELECT * FROM bug_reports ORDER BY created_at DESC")
+    .all();
+
+  res.json(reports);
 });
 
 // =======================
