@@ -544,38 +544,6 @@ function saveChats() {
 /* =======================
    IMPROVED SLIDER FUNCTIONS
 ======================= */
-function updateSliderProgress() {
-  const tempSlider = document.getElementById("temperature");
-  const maxTokensSlider = document.getElementById("maxTokens");
-
-  if (tempSlider) {
-    const tempValue = (parseInt(tempSlider.value) / 10).toFixed(1);
-    const tempPercent = (parseInt(tempSlider.value) / 20) * 100;
-
-    if (elements.temperatureProgress) {
-      elements.temperatureProgress.style.width = `${tempPercent}%`;
-    }
-
-    const tempValueEl = document.getElementById("temperatureValue");
-    if (tempValueEl) {
-      tempValueEl.textContent = tempValue;
-    }
-  }
-
-  if (maxTokensSlider) {
-    const maxTokensValue = parseInt(maxTokensSlider.value);
-    const maxTokensPercent = ((maxTokensValue - 512) / (8192 - 512)) * 100;
-
-    if (elements.maxTokensProgress) {
-      elements.maxTokensProgress.style.width = `${maxTokensPercent}%`;
-    }
-
-    const maxTokensValueEl = document.getElementById("maxTokensValue");
-    if (maxTokensValueEl) {
-      maxTokensValueEl.textContent = maxTokensValue.toLocaleString();
-    }
-  }
-}
 
 
 /* =======================
@@ -1720,7 +1688,6 @@ function applySettings() {
     document.documentElement.style.setProperty('--gradient-text', 'linear-gradient(135deg, var(--primary), #b721ff)');
   }
   
-  updateSliderProgress();
 }
 
 
