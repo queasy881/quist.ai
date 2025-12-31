@@ -2357,3 +2357,26 @@ body.compact-mode .modern-headline {
   border-color: rgba(255,0,110,0.4);
   color: #ff6b9d;
 }
+
+.tos-link {
+  position: fixed;
+  top: 14px;
+  right: 80px; /* leaves space for settings button */
+  z-index: 200;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.tos-link:hover {
+  color: white;
+  background: rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+}
+
