@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Submit a Bug – Quist AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Main site CSS -->
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* =========================
+       BUG REPORT PAGE
+       ========================= */
+
+    body.bug-page {
+      font-family: 'Inter', system-ui, sans-serif;
+      background:
+        radial-gradient(1000px 500px at 15% 10%, rgba(255, 80, 80, 0.14), transparent 60%),
+        radial-gradient(800px 400px at 90% 20%, rgba(255, 120, 120, 0.12), transparent 60%),
+        #0b0f1a;
+      min-height: 100vh;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .bug-container {
+      max-width: 720px;
+      margin: 80px auto 120px;
+      padding: 48px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(14px);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04),
+        0 30px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    .bug-container h1 {
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+
+    .bug-container p {
+      font-size: 15px;
+      opacity: 0.8;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      opacity: 0.85;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: white;
+      font-size: 14px;
+      margin-bottom: 18px;
+      outline: none;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(255, 100, 100, 0.6);
+      box-shadow: 0 0 0 1px rgba(255, 100, 100, 0.4);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 140px;
+    }
+
+    button {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(255, 80, 80, 0.95), rgba(255, 120, 120, 0.95));
+      border: none;
+      color: white;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(255, 80, 80, 0.45);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 18px;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 36px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .bug-container {
+        padding: 32px 24px;
+        margin: 40px 16px 80px;
+      }
+
+      .bug-container h1 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+
+<body class="bug-page">
+
+  <div class="bug-container">
+    <h1>Submit a Bug</h1>
+    <p>
+      Found an issue or something not working as expected?
+      Please describe it below. Reports are stored privately and help improve Quist AI.
+    </p>
+
+    <form id="bugForm">
+      <label for="bugTitle">Bug Title</label>
+      <input id="bugTitle" type="text" placeholder="Short summary of the issue" required>
+
+      <label for="bugDescription">Description</label>
+      <textarea id="bugDescription" placeholder="What happened? What did you expect to happen?" required></textarea>
+
+      <button type="submit" id="submitBtn">Submit Bug</button>
+      <div class="status" id="statusText"></div>
+    </form>
+
+    <a href="index.html" class="back-link">← Back to Quist AI</a>
+  </div>
+
+  <script>
+    const form = document.getElementById("bugForm");
+    const statusText = document.getElementById("statusText");
+    const submitBtn = document.getElementById("submitBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      submitBtn.disabled = true;
+      statusText.textContent = "Submitting bug report...";
+
+      const payload = {
+        title: document.getElementById("bugTitle").value.trim(),
+        description: document.getElementById("bugDescription").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/report-bug", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          statusText.textContent = "Bug report submitted. Thank you!";
+          form.reset();
+        } else {
+          statusText.textContent = "Failed to submit bug report.";
+        }
+      } catch (err) {
+        statusText.textContent = "Network error. Please try again.";
+      }
+
+      submitBtn.disabled = false;
+    });
+  </script>
+
+</body>
+</html>

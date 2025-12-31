@@ -2385,3 +2385,34 @@ body.tos-page {
   overflow-y: auto;
 }
 
+
+
+.top-links {
+  position: fixed;
+  top: 14px;
+  right: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 200;
+}
+
+.bug-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 100, 100, 0.08);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.bug-link:hover {
+  color: white;
+  background: rgba(255, 100, 100, 0.18);
+  box-shadow: 0 0 14px rgba(255, 80, 80, 0.45);
+}
+
+

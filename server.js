@@ -1,160 +1,131 @@
-// server.js — FINAL (Railway + Resend + Claude)
-
+import express from "express";
+import fetch from "node-fetch";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { Resend } from "resend";
+
 dotenv.config();
 
-import express from "express";
-import cors from "cors";
-import { Resend } from "resend";
-import Anthropic from "@anthropic-ai/sdk";
-import path from "path";
-import { fileURLToPath } from "url";
-
-console.log("SERVER VERSION: RESEND ACTIVE");
-
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // =======================
-// PORT (Railway)
+// Middleware
 // =======================
-const PORT = process.env.PORT || 8080;
-
-// =======================
-// PATH FIX (ES MODULES)
-// =======================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// =======================
-// MIDDLEWARE
-// =======================
-app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
 // =======================
-// ENV CHECKS
-// =======================
-if (!process.env.RESEND_API_KEY) {
-  console.error("❌ RESEND_API_KEY missing");
-  process.exit(1);
-}
-
-if (!process.env.CLAUDE_API_KEY) {
-  console.error("❌ CLAUDE_API_KEY missing");
-  process.exit(1);
-}
-
-// =======================
-// CLIENTS
+// Email (Resend)
 // =======================
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-console.log(
-  "CLAUDE KEY CHECK:",
-  process.env.CLAUDE_API_KEY?.slice(0, 12)
-);
+// =======================
+// CHAT ENDPOINT
+// =======================
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { messages } = req.body;
 
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Invalid messages" });
+    }
 
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.CLAUDE_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 4096,
+        messages,
+      }),
+    });
+
+    const data = await response.json();
+
+    res.json({
+      reply: data?.content?.[0]?.text || "No response",
+    });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.status(500).json({ error: "Chat failed" });
+  }
 });
 
 // =======================
-// VERIFICATION STORE
-// =======================
-const verificationCodes = new Map();
-
-// =======================
-// SEND VERIFICATION EMAIL
+// VERIFICATION EMAIL
 // =======================
 app.post("/api/send-verification", async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, code } = req.body;
 
-    console.log("EMAIL RECEIVED:", email);
-
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      return res.status(400).json({ error: "Invalid email" });
+    if (!email || !code) {
+      return res.status(400).json({ error: "Missing email or code" });
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    verificationCodes.set(email, {
-      code,
-      expires: Date.now() + 10 * 60 * 1000,
-    });
-
-    const { data, error } = await resend.emails.send({
-      from: "Quist AI <onboarding@resend.dev>",
+    const { error } = await resend.emails.send({
+      from: "Quist AI <verify@resend.dev>",
       to: email,
-      subject: "Your verification code",
+      subject: "Your Quist AI Verification Code",
       html: `
-        <h2>Email Verification</h2>
+        <h2>Verify Your Email</h2>
         <p>Your verification code is:</p>
         <h1>${code}</h1>
-        <p>This code expires in 10 minutes.</p>
       `,
     });
 
-    console.log("RESEND RESULT:", data, error);
-
     if (error) {
+      console.error(error);
       return res.status(500).json({ error: "Email failed" });
     }
 
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Email error:", err);
-    res.status(500).json({ error: "Email failed" });
+    console.error("Verification error:", err);
+    res.status(500).json({ error: "Verification failed" });
   }
 });
 
 // =======================
-// VERIFY CODE
+// BUG REPORT (TXT FILE)
 // =======================
-app.post("/api/verify-code", (req, res) => {
-  const { email, code } = req.body;
-
-  const stored = verificationCodes.get(email);
-
-  if (!stored) return res.status(400).json({ error: "No code found" });
-  if (Date.now() > stored.expires) return res.status(400).json({ error: "Code expired" });
-  if (stored.code !== code) return res.status(400).json({ error: "Invalid code" });
-
-  verificationCodes.delete(email);
-  res.json({ success: true });
-});
-
-// =======================
-// CHAT (CLAUDE)
-// =======================
-app.post("/api/chat", async (req, res) => {
+app.post("/api/report-bug", (req, res) => {
   try {
-    const { messages, temperature = 0.7, max_tokens = 1024 } = req.body;
+    const { title, description } = req.body;
 
-    if (!Array.isArray(messages)) {
-      return res.status(400).json({ error: "Messages array required" });
+    if (!title || !description) {
+      return res.status(400).json({ error: "Missing fields" });
     }
 
-    const system = messages.find(m => m.role === "system")?.content;
+    const report = `
+==============================
+Time: ${new Date().toISOString()}
+Title: ${title}
 
-    const claudeMessages = messages
-      .filter(m => m.role === "user" || m.role === "assistant")
-      .map(m => ({ role: m.role, content: m.content }));
+Description:
+${description}
+==============================
 
-    const response = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
-      system,
-      temperature,
-      max_tokens,
-      messages: claudeMessages,
+`;
+
+    const filePath = path.join(process.cwd(), "bug-reports.txt");
+
+    fs.appendFile(filePath, report, (err) => {
+      if (err) {
+        console.error("Bug report write failed:", err);
+        return res.status(500).json({ error: "Write failed" });
+      }
+
+      res.json({ success: true });
     });
-
-    res.json({ content: response.content });
   } catch (err) {
-    console.error("❌ Claude error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Bug report error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -162,5 +133,5 @@ app.post("/api/chat", async (req, res) => {
 // START SERVER
 // =======================
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
