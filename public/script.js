@@ -334,6 +334,12 @@ function cancelResearch() {
    EMAIL VERIFICATION
 ======================= */
 function checkVerification() {
+  // If verification modal does not exist (main app), skip entirely
+  if (!elements.verificationModal) {
+    updateUserDisplay();
+    return;
+  }
+
   if (state.isVerified || state.userEmail) {
     elements.verificationModal.classList.add("hidden");
     updateUserDisplay();
@@ -2011,7 +2017,6 @@ function init() {
 
 // Start the app
 document.addEventListener("DOMContentLoaded", () => {
-  updateUserDisplay();
-  checkVerification();
+  init();
 });
 
