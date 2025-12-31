@@ -1252,13 +1252,23 @@ Verify grammar, formatting, and clarity silently.
     const data = await response.json();
 
     let aiContent = "";
-    if (data.content && Array.isArray(data.content)) {
-      aiContent = data.content[0].text || "";
-    } else if (data.choices?.[0]?.message) {
-      aiContent = data.choices[0].message.content;
-    } else if (data.text) {
-      aiContent = data.text;
-    }
+
+if (data.reply) {
+  // ✅ YOUR BACKEND FORMAT
+  aiContent = data.reply;
+
+} else if (data.content && Array.isArray(data.content)) {
+  // Anthropic-style fallback
+  aiContent = data.content[0]?.text || "";
+
+} else if (data.choices?.[0]?.message) {
+  // OpenAI-style fallback
+  aiContent = data.choices[0].message.content;
+
+} else if (data.text) {
+  aiContent = data.text;
+}
+
 
     const detected = detectCode(aiContent);
 
