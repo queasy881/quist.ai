@@ -352,38 +352,37 @@ function updateUserDisplay() {
 }
 
 async function sendVerificationCode() {
-  const email = document.getElementById("emailInput").value.trim();
+  const email = document.getElementById("verificationEmail")?.value.trim();
 
   if (!email) {
     showError("Please enter an email address");
     return;
   }
 
-  // ✅ generate 6-digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-  // store it temporarily (you already do this elsewhere)
-  state.verificationCode = code;
   state.userEmail = email;
+  state.verificationCode = code;
 
-  fetch("/api/send-verification", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, code }) // ✅ FIX IS HERE
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        showSuccess("Verification code sent");
-        showCodeInput(); // whatever you already use
-      } else {
-        showError("Failed to send code");
-      }
-    })
-    .catch(() => {
-      showError("Network error");
+  try {
+    const res = await fetch("/api/send-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code })
     });
+
+    const data = await res.json();
+
+    if (data.success) {
+      showSuccess("Verification code sent");
+      showCodeInput();
+    } else {
+      showError("Failed to send verification code");
+    }
+  } catch {
+    showError("Network error");
+  }
 }
+
 
 
 async function verifyCode() {
