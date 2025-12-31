@@ -1,7 +1,7 @@
 // Enhanced Chat Application - Complete Rewrite with Email Verification
 const VERIFICATION_URL = "/api";
 const BACKEND_URL = "/api/chat";
-const VOICE_TRANSCRIPTION_URL = "/api/transcribe"; // New endpoint for voice transcription
+const VOICE_TRANSCRIPTION_URL = "/api/transcribe";
 
 /* =======================
    DOM ELEMENTS
@@ -24,7 +24,6 @@ const elements = {
   runArtifact: document.getElementById("runArtifact"),
   totalChats: document.getElementById("totalChats"),
   totalMessages: document.getElementById("totalMessages"),
-  // Verification elements
   verificationModal: document.getElementById("verificationModal"),
   emailStep: document.getElementById("emailStep"),
   codeStep: document.getElementById("codeStep"),
@@ -43,13 +42,10 @@ const elements = {
   displayUsername: document.getElementById("displayUsername"),
   displayUserEmail: document.getElementById("displayUserEmail"),
   logoutBtn: document.getElementById("logoutBtn"),
-  // New modal elements
   thinkingModal: document.getElementById("thinkingModal"),
   researchModal: document.getElementById("researchModal"),
   cancelResearch: document.getElementById("cancelResearch"),
-  // Quick responses
   quickResponses: document.getElementById("quickResponses"),
-  // Sound toggles
   soundMessageSent: document.getElementById("soundMessageSent"),
   soundMessageReceived: document.getElementById("soundMessageReceived"),
   soundTyping: document.getElementById("soundTyping"),
@@ -58,27 +54,52 @@ const elements = {
   soundThinking: document.getElementById("soundThinking"),
   soundResearch: document.getElementById("soundResearch"),
   soundVolume: document.getElementById("soundVolume"),
-  // Feature toggles
   deepThinkingToggle: document.getElementById("deepThinkingToggle"),
   researchInternetToggle: document.getElementById("researchInternetToggle"),
   realTimeSearchToggle: document.getElementById("realTimeSearchToggle"),
   particleEffectsToggle: document.getElementById("particleEffectsToggle"),
   gradientTextToggle: document.getElementById("gradientTextToggle"),
-  // New UI elements for improved settings
   modelDisplay: document.getElementById("modelDisplay"),
   temperatureProgress: document.getElementById("temperatureProgress"),
   maxTokensProgress: document.getElementById("maxTokensProgress"),
   typingSpeedProgress: document.getElementById("typingSpeedProgress"),
   soundVolumeProgress: document.getElementById("soundVolumeProgress"),
   animationSpeedProgress: document.getElementById("animationSpeedProgress"),
-  // Welcome screen elements
   welcomeInput: document.getElementById("welcomeInput"),
   welcomeVoiceBtn: document.getElementById("welcomeVoiceBtn"),
   welcomeSendBtn: document.getElementById("welcomeSendBtn"),
-  // NEW: File preview elements
   filePreviewArea: document.getElementById("filePreviewArea"),
   filePreviews: document.getElementById("filePreviews"),
-  clearAllFiles: document.getElementById("clearAllFiles")
+  clearAllFiles: document.getElementById("clearAllFiles"),
+  // New settings elements
+  settingsCategories: document.querySelectorAll(".settings-category"),
+  modelsSection: document.getElementById("modelsSection"),
+  parametersSection: document.getElementById("parametersSection"),
+  appearanceSection: document.getElementById("appearanceSection"),
+  audioSection: document.getElementById("audioSection"),
+  advancedSection: document.getElementById("advancedSection"),
+  colorHexValue: document.getElementById("colorHexValue"),
+  soundToggle: document.getElementById("soundToggle"),
+  compactMode: document.getElementById("compactMode"),
+  autoCopyCode: document.getElementById("autoCopyCode"),
+  typingIndicator: document.getElementById("typingIndicator"),
+  contextWindow: document.getElementById("contextWindow"),
+  responseFormat: document.getElementById("responseFormat"),
+  backgroundSelect: document.getElementById("backgroundSelect"),
+  fontSizeSelect: document.getElementById("fontSizeSelect"),
+  animationSelect: document.getElementById("animationSelect"),
+  designSelect: document.getElementById("designSelect"),
+  messageAnimation: document.getElementById("messageAnimation"),
+  accentColor: document.getElementById("accentColor"),
+  modelSelect: document.getElementById("modelSelect"),
+  temperature: document.getElementById("temperature"),
+  maxTokens: document.getElementById("maxTokens"),
+  typingSpeed: document.getElementById("typingSpeed"),
+  animationSpeed: document.getElementById("animationSpeed"),
+  exportChat: document.getElementById("exportChat"),
+  importChat: document.getElementById("importChat"),
+  backupChats: document.getElementById("backupChats"),
+  resetSettings: document.getElementById("resetSettings")
 };
 
 /* =======================
@@ -129,7 +150,6 @@ function playSound(soundName) {
   const sound = soundEffects[soundName];
   if (sound) {
     try {
-      // Recreate sound each time
       const volume = parseInt(elements.soundVolume?.value || 70) / 100;
       soundEffects[soundName] = createSound(
         getFrequencyForSound(soundName),
@@ -176,15 +196,16 @@ let state = {
   isGenerating: false,
   chats: JSON.parse(localStorage.getItem("chats")) || {},
   currentChat: null,
-  pendingFiles: [], // Changed from pendingFile to pendingFiles array
+  pendingFiles: [],
   userEmail: localStorage.getItem("verifiedEmail") || null,
   username: localStorage.getItem("username") || null,
   isVerified: false,
   isResearching: false,
   isThinking: false,
+  lastSettingsCategory: localStorage.getItem("lastSettingsCategory") || "models",
   settings: {
     model: "claude-3-haiku-20240307",
-    temperature: 0.0,
+    temperature: 0.3,
     typingSpeed: 2,
     maxTokens: 4096,
     accentColor: "#00d4ff",
@@ -192,7 +213,7 @@ let state = {
     animation: "slide",
     design: "rounded",
     fontSize: "medium",
-    soundEnabled: false,
+    soundEnabled: true,
     compactMode: false,
     autoCopyCode: false,
     typingIndicator: true,
@@ -231,6 +252,453 @@ if (!allowedClaudeModels.includes(state.settings.model)) {
 state.currentChat = Object.keys(state.chats)[0] || createChat();
 
 /* =======================
+   SETTINGS CATEGORY MANAGEMENT
+======================= */
+function setupSettingsCategories() {
+  // Set active category based on last used
+  const activeCategory = state.lastSettingsCategory;
+  showSettingsCategory(activeCategory);
+  
+  // Add click listeners to category buttons
+  elements.settingsCategories.forEach(category => {
+    category.addEventListener("click", () => {
+      const categoryId = category.dataset.category;
+      showSettingsCategory(categoryId);
+      state.lastSettingsCategory = categoryId;
+      localStorage.setItem("lastSettingsCategory", categoryId);
+    });
+  });
+}
+
+function showSettingsCategory(categoryId) {
+  // Update active category button
+  elements.settingsCategories.forEach(cat => {
+    if (cat.dataset.category === categoryId) {
+      cat.classList.add("active");
+    } else {
+      cat.classList.remove("active");
+    }
+  });
+  
+  // Hide all sections
+  const sections = [
+    elements.modelsSection,
+    elements.parametersSection,
+    elements.appearanceSection,
+    elements.audioSection,
+    elements.advancedSection
+  ];
+  
+  sections.forEach(section => {
+    section.classList.remove("active");
+  });
+  
+  // Show selected section
+  const sectionToShow = document.getElementById(`${categoryId}Section`);
+  if (sectionToShow) {
+    sectionToShow.classList.add("active");
+  }
+}
+
+/* =======================
+   IMPROVED SLIDER FUNCTIONS
+======================= */
+function setupModernSliders() {
+  // Setup all sliders with improved visual feedback
+  const sliders = [
+    { id: "temperature", progress: "temperatureProgress", value: "temperatureValue", factor: 0.1 },
+    { id: "maxTokens", progress: "maxTokensProgress", value: "maxTokensValue", min: 512, max: 8192 },
+    { id: "typingSpeed", progress: "typingSpeedProgress", value: "typingSpeedValue", min: 1, max: 5 },
+    { id: "soundVolume", progress: "soundVolumeProgress", value: "soundVolumeValue", suffix: "%" },
+    { id: "animationSpeed", progress: "animationSpeedProgress", value: "animationSpeedValue", suffix: "x", min: 0.5, max: 3, step: 0.1 }
+  ];
+  
+  sliders.forEach(sliderConfig => {
+    const slider = document.getElementById(sliderConfig.id);
+    if (!slider) return;
+    
+    // Set initial value from state
+    if (sliderConfig.id === "temperature") {
+      slider.value = Math.round(state.settings.temperature * 10);
+    } else if (sliderConfig.id === "maxTokens") {
+      slider.value = state.settings.maxTokens;
+    } else if (sliderConfig.id === "typingSpeed") {
+      slider.value = state.settings.typingSpeed;
+    } else if (sliderConfig.id === "soundVolume") {
+      slider.value = state.settings.soundVolume;
+    } else if (sliderConfig.id === "animationSpeed") {
+      slider.value = state.settings.animationSpeed;
+    }
+    
+    // Update visual on input
+    slider.addEventListener("input", (e) => {
+      updateSliderVisual(sliderConfig, e.target.value);
+      updateSliderValue(sliderConfig, e.target.value);
+    });
+    
+    // Update on change
+    slider.addEventListener("change", (e) => {
+      saveSliderValue(sliderConfig, e.target.value);
+    });
+    
+    // Initialize visual
+    updateSliderVisual(sliderConfig, slider.value);
+    updateSliderValue(sliderConfig, slider.value);
+  });
+  
+  // Color picker
+  if (elements.accentColor) {
+    elements.accentColor.value = state.settings.accentColor;
+    if (elements.colorHexValue) {
+      elements.colorHexValue.textContent = state.settings.accentColor;
+    }
+    
+    elements.accentColor.addEventListener("input", (e) => {
+      const color = e.target.value;
+      state.settings.accentColor = color;
+      if (elements.colorHexValue) {
+        elements.colorHexValue.textContent = color;
+      }
+      applySettings();
+    });
+    
+    elements.accentColor.addEventListener("change", () => {
+      saveSettings();
+    });
+  }
+  
+  // Color presets
+  document.querySelectorAll(".color-preset").forEach(preset => {
+    preset.addEventListener("click", () => {
+      const color = preset.dataset.color;
+      state.settings.accentColor = color;
+      if (elements.accentColor) {
+        elements.accentColor.value = color;
+      }
+      if (elements.colorHexValue) {
+        elements.colorHexValue.textContent = color;
+      }
+      applySettings();
+      saveSettings();
+      
+      // Update active state
+      document.querySelectorAll(".color-preset").forEach(p => {
+        p.classList.remove("active");
+      });
+      preset.classList.add("active");
+    });
+  });
+}
+
+function updateSliderVisual(sliderConfig, rawValue) {
+  const progress = elements[sliderConfig.progress];
+  if (!progress) return;
+  
+  let percent = 0;
+  const value = parseFloat(rawValue);
+  
+  if (sliderConfig.id === "temperature") {
+    percent = (value / 20) * 100;
+  } else if (sliderConfig.id === "maxTokens") {
+    percent = ((value - 512) / (8192 - 512)) * 100;
+  } else if (sliderConfig.id === "typingSpeed") {
+    percent = ((value - 1) / 4) * 100;
+  } else if (sliderConfig.id === "soundVolume") {
+    percent = value;
+  } else if (sliderConfig.id === "animationSpeed") {
+    percent = ((value - 0.5) / 2.5) * 100;
+  }
+  
+  progress.style.width = `${percent}%`;
+  
+  // Update thumb position
+  const slider = document.getElementById(sliderConfig.id);
+  if (slider) {
+    const thumb = slider.parentElement.querySelector(".slider-thumb");
+    if (thumb) {
+      thumb.style.left = `${percent}%`;
+    }
+  }
+}
+
+function updateSliderValue(sliderConfig, rawValue) {
+  const valueElement = elements[sliderConfig.value];
+  if (!valueElement) return;
+  
+  let displayValue = "";
+  const value = parseFloat(rawValue);
+  
+  if (sliderConfig.factor) {
+    displayValue = (value * sliderConfig.factor).toFixed(1);
+  } else if (sliderConfig.id === "maxTokens") {
+    displayValue = value.toLocaleString();
+  } else if (sliderConfig.id === "soundVolume") {
+    displayValue = `${value}%`;
+  } else if (sliderConfig.id === "animationSpeed") {
+    displayValue = `${value.toFixed(1)}x`;
+  } else {
+    displayValue = value.toString();
+  }
+  
+  if (sliderConfig.suffix) {
+    displayValue = displayValue.replace(sliderConfig.suffix, "") + sliderConfig.suffix;
+  }
+  
+  valueElement.textContent = displayValue;
+}
+
+function saveSliderValue(sliderConfig, rawValue) {
+  const value = parseFloat(rawValue);
+  
+  switch(sliderConfig.id) {
+    case "temperature":
+      state.settings.temperature = value * 0.1;
+      break;
+    case "maxTokens":
+      state.settings.maxTokens = value;
+      break;
+    case "typingSpeed":
+      state.settings.typingSpeed = value;
+      break;
+    case "soundVolume":
+      state.settings.soundVolume = value;
+      break;
+    case "animationSpeed":
+      state.settings.animationSpeed = value;
+      break;
+  }
+  
+  saveSettings();
+}
+
+/* =======================
+   SETTINGS MANAGEMENT
+======================= */
+function setupSettingsListeners() {
+  // Model select
+  if (elements.modelSelect) {
+    elements.modelSelect.value = state.settings.model;
+    elements.modelSelect.addEventListener("change", (e) => {
+      state.settings.model = e.target.value;
+      if (elements.modelDisplay) {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        elements.modelDisplay.textContent = selectedOption.text;
+      }
+      saveSettings();
+    });
+  }
+  
+  // Toggle switches
+  const toggles = [
+    { id: "soundToggle", setting: "soundEnabled" },
+    { id: "compactMode", setting: "compactMode" },
+    { id: "autoCopyCode", setting: "autoCopyCode" },
+    { id: "typingIndicator", setting: "typingIndicator" },
+    { id: "deepThinkingToggle", setting: "deepThinkingMode" },
+    { id: "researchInternetToggle", setting: "researchInternet" },
+    { id: "realTimeSearchToggle", setting: "realTimeSearch" },
+    { id: "particleEffectsToggle", setting: "particleEffects" },
+    { id: "gradientTextToggle", setting: "gradientText" }
+  ];
+  
+  toggles.forEach(toggle => {
+    const element = document.getElementById(toggle.id);
+    if (element) {
+      element.checked = state.settings[toggle.setting];
+      element.addEventListener("change", (e) => {
+        state.settings[toggle.setting] = e.target.checked;
+        if (toggle.id === "soundToggle") {
+          // Enable/disable all sound toggles
+          const soundToggles = [
+            "soundMessageSent", "soundMessageReceived", "soundTyping",
+            "soundSuccess", "soundError", "soundThinking", "soundResearch"
+          ];
+          soundToggles.forEach(id => {
+            const toggleEl = document.getElementById(id);
+            if (toggleEl) {
+              toggleEl.disabled = !e.target.checked;
+              if (!e.target.checked) {
+                toggleEl.checked = false;
+              } else {
+                toggleEl.checked = true;
+              }
+            }
+          });
+        }
+        saveSettings();
+        applySettings();
+      });
+    }
+  });
+  
+  // Select elements
+  const selects = [
+    { id: "contextWindow", setting: "contextWindow" },
+    { id: "responseFormat", setting: "responseFormat" },
+    { id: "backgroundSelect", setting: "background" },
+    { id: "fontSizeSelect", setting: "fontSize" },
+    { id: "animationSelect", setting: "animation" },
+    { id: "designSelect", setting: "design" },
+    { id: "messageAnimation", setting: "messageAnimation" }
+  ];
+  
+  selects.forEach(select => {
+    const element = document.getElementById(select.id);
+    if (element) {
+      element.value = state.settings[select.setting];
+      element.addEventListener("change", (e) => {
+        state.settings[select.setting] = e.target.value;
+        saveSettings();
+        applySettings();
+      });
+    }
+  });
+  
+  // Data management buttons
+  if (elements.exportChat) {
+    elements.exportChat.addEventListener("click", () => {
+      showNotification("Export feature coming soon!");
+      playSound('success');
+    });
+  }
+  
+  if (elements.importChat) {
+    elements.importChat.addEventListener("click", () => {
+      showNotification("Import feature coming soon!");
+      playSound('success');
+    });
+  }
+  
+  if (elements.backupChats) {
+    elements.backupChats.addEventListener("click", () => {
+      showNotification("Backup feature coming soon!");
+      playSound('success');
+    });
+  }
+  
+  if (elements.resetSettings) {
+    elements.resetSettings.addEventListener("click", () => {
+      if (confirm("Reset all settings to defaults?")) {
+        // Reset to defaults
+        state.settings = {
+          model: "claude-3-haiku-20240307",
+          temperature: 0.3,
+          typingSpeed: 2,
+          maxTokens: 4096,
+          accentColor: "#00d4ff",
+          background: "default",
+          animation: "slide",
+          design: "rounded",
+          fontSize: "medium",
+          soundEnabled: true,
+          compactMode: false,
+          autoCopyCode: false,
+          typingIndicator: true,
+          contextWindow: "medium",
+          responseFormat: "markdown",
+          deepThinkingMode: false,
+          researchInternet: false,
+          realTimeSearch: false,
+          particleEffects: false,
+          gradientText: false,
+          messageAnimation: "slide",
+          animationSpeed: 1.0,
+          soundVolume: 70
+        };
+        
+        saveSettings();
+        applySettings();
+        setupModernSliders();
+        showNotification("Settings reset to defaults!");
+        playSound('success');
+      }
+    });
+  }
+  
+  // Sound toggles
+  const soundToggles = [
+    "soundMessageSent", "soundMessageReceived", "soundTyping",
+    "soundSuccess", "soundError", "soundThinking", "soundResearch"
+  ];
+  
+  soundToggles.forEach(id => {
+    const toggle = document.getElementById(id);
+    if (toggle) {
+      toggle.addEventListener("change", () => {
+        saveSettings();
+      });
+    }
+  });
+}
+
+function applySettings() {
+  // Apply accent color
+  document.documentElement.style.setProperty("--primary", state.settings.accentColor);
+  
+  // Apply background theme
+  applyBackgroundTheme(state.settings.background);
+  
+  // Apply font size
+  document.body.classList.remove('font-small', 'font-medium', 'font-large');
+  document.body.classList.add(`font-${state.settings.fontSize}`);
+  
+  // Apply design style
+  applyDesignStyle(state.settings.design);
+  
+  // Apply compact mode
+  document.body.classList.toggle('compact-mode', state.settings.compactMode);
+  
+  // Apply gradient text
+  if (state.settings.gradientText) {
+    document.documentElement.style.setProperty('--gradient-text', 'linear-gradient(135deg, var(--primary), #b721ff)');
+  } else {
+    document.documentElement.style.removeProperty('--gradient-text');
+  }
+  
+  // Update typing indicator visibility
+  if (elements.typing) {
+    elements.typing.style.display = state.settings.typingIndicator ? 'flex' : 'none';
+  }
+  
+  // Update active color preset
+  document.querySelectorAll('.color-preset').forEach(preset => {
+    if (preset.dataset.color === state.settings.accentColor) {
+      preset.classList.add('active');
+    } else {
+      preset.classList.remove('active');
+    }
+  });
+}
+
+function applyBackgroundTheme(theme) {
+  const backgroundThemes = {
+    "default": "linear-gradient(135deg, #0a0e27 0%, #1a0b2e 50%, #16213e 100%)",
+    "quist-blue": "linear-gradient(135deg, #0066ff 0%, #00d4ff 50%, #0a2540 100%)",
+    "cosmic-purple": "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #1a1a2e 100%)",
+    "ocean-blue": "linear-gradient(135deg, #2E3192 0%, #1BFFFF 50%, #0a2540 100%)",
+    "sunset-orange": "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 25%, #c44569 50%, #6c5ce7 75%, #1a1a2e 100%)",
+    "forest-green": "linear-gradient(135deg, #56ab2f 0%, #a8e063 25%, #134e5e 75%, #0a1f2e 100%)",
+    "midnight-blue": "linear-gradient(135deg, #1e3c72 0%, #2a5298 25%, #1a1f3c 75%, #0a0e1a 100%)",
+    "dark-void": "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #000000 100%)",
+    "cyberpunk": "linear-gradient(135deg, #ff006e 0%, #8338ec 25%, #3a86ff 50%, #06ffa5 75%, #1a1a2e 100%)"
+  };
+  
+  const gradient = backgroundThemes[theme] || backgroundThemes["default"];
+  document.body.style.background = gradient;
+}
+
+function applyDesignStyle(style) {
+  let radius = "16px";
+  if (style === "sharp") radius = "4px";
+  else if (style === "neumorphic") radius = "24px";
+  document.documentElement.style.setProperty("--radius", radius);
+}
+
+function saveSettings() {
+  localStorage.setItem("appSettings", JSON.stringify(state.settings));
+}
+
+/* =======================
    MINIMAL FORMATTING - FIXED WITH EARLY RETURNS
 ======================= */
 function minimalFormatting(text) {
@@ -238,7 +706,6 @@ function minimalFormatting(text) {
     return text;
   }
 
-  // ✅ DO NOTHING if the model already formatted the response
   if (
     text.includes("\n") ||
     text.includes("•") ||
@@ -247,12 +714,10 @@ function minimalFormatting(text) {
     return text;
   }
 
-  // ✅ Light cleanup ONLY for unstructured, long text
   if (text.length < 200) {
     return text.trim();
   }
 
-  // Normalize excessive spaces ONLY
   let cleaned = text
     .replace(/\s{3,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -262,7 +727,7 @@ function minimalFormatting(text) {
 }
 
 /* =======================
-   DEDICATED CODE RENDER FUNCTION - ADDED
+   DEDICATED CODE RENDER FUNCTION
 ======================= */
 function renderCode(rawCode) {
   const container = elements.artifactContent;
@@ -558,21 +1023,6 @@ function showVerificationSuccess(message) {
 }
 
 /* =======================
-   BACKGROUND THEMES
-======================= */
-const backgroundThemes = {
-  "default": "linear-gradient(135deg, #0a0e27 0%, #1a0b2e 50%, #16213e 100%)",
-  "quist-blue": "linear-gradient(135deg, #0066ff 0%, #00d4ff 50%, #0a2540 100%)",
-  "cosmic-purple": "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #1a1a2e 100%)",
-  "ocean-blue": "linear-gradient(135deg, #2E3192 0%, #1BFFFF 50%, #0a2540 100%)",
-  "sunset-orange": "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 25%, #c44569 50%, #6c5ce7 75%, #1a1a2e 100%)",
-  "forest-green": "linear-gradient(135deg, #56ab2f 0%, #a8e063 25%, #134e5e 75%, #0a1f2e 100%)",
-  "midnight-blue": "linear-gradient(135deg, #1e3c72 0%, #2a5298 25%, #1a1f3c 75%, #0a0e1a 100%)",
-  "dark-void": "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #000000 100%)",
-  "cyberpunk": "linear-gradient(135deg, #ff006e 0%, #8338ec 25%, #3a86ff 50%, #06ffa5 75%, #1a1a2e 100%)"
-};
-
-/* =======================
    UTILITY FUNCTIONS
 ======================= */
 const now = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -581,43 +1031,10 @@ function saveToLocalStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function saveSettings() {
-  saveToLocalStorage("appSettings", state.settings);
-}
-
 function saveChats() {
   saveToLocalStorage("chats", state.chats);
   renderChatList();
   updateStats();
-}
-
-/* =======================
-   IMPROVED SLIDER FUNCTIONS
-======================= */
-function updateSliderProgress() {
-  const tempValue = (parseInt(document.getElementById("temperature").value) / 10).toFixed(1);
-  const tempPercent = (parseInt(document.getElementById("temperature").value) / 20) * 100;
-  elements.temperatureProgress.style.width = `${tempPercent}%`;
-  document.getElementById("temperatureValue").textContent = tempValue;
-  
-  const maxTokensValue = parseInt(document.getElementById("maxTokens").value);
-  const maxTokensPercent = ((maxTokensValue - 512) / (8192 - 512)) * 100;
-  elements.maxTokensProgress.style.width = `${maxTokensPercent}%`;
-  document.getElementById("maxTokensValue").textContent = maxTokensValue.toLocaleString();
-  
-  const typingSpeedValue = parseInt(document.getElementById("typingSpeed").value);
-  const typingSpeedPercent = ((typingSpeedValue - 1) / 4) * 100;
-  elements.typingSpeedProgress.style.width = `${typingSpeedPercent}%`;
-  document.getElementById("typingSpeedValue").textContent = typingSpeedValue;
-  
-  const soundVolumeValue = parseInt(document.getElementById("soundVolume").value);
-  elements.soundVolumeProgress.style.width = `${soundVolumeValue}%`;
-  document.getElementById("soundVolumeValue").textContent = `${soundVolumeValue}%`;
-  
-  const animationSpeedValue = parseFloat(document.getElementById("animationSpeed").value);
-  const animationSpeedPercent = ((animationSpeedValue - 0.5) / 2.5) * 100;
-  elements.animationSpeedProgress.style.width = `${animationSpeedPercent}%`;
-  document.getElementById("animationSpeedValue").textContent = `${animationSpeedValue.toFixed(1)}x`;
 }
 
 /* =======================
@@ -892,7 +1309,7 @@ function renderMessage({ role, content, time }) {
 }
 
 /* =======================
-   MESSAGE HANDLING - FIXED CODE RENDERING
+   MESSAGE HANDLING
 ======================= */
 function addMessage(message) {
   renderMessage(message);
@@ -974,13 +1391,6 @@ function runArtifactCode() {
   playSound('success');
 }
 
-function extractCodeBlocks(text) {
-  const matches = text.match(/```[\s\S]*?```/g);
-  return matches ? matches.join("\n\n") : null;
-}
-
-const systemPromptAddition = "";
-
 /* =======================
    FILE PREVIEW MANAGEMENT
 ======================= */
@@ -1019,7 +1429,6 @@ function renderFilePreviews() {
     const previewCard = document.createElement("div");
     previewCard.className = "file-preview-card";
     
-    // Get file icon based on type
     const fileIcon = getFileIcon(fileData.type, fileData.name);
     
     previewCard.innerHTML = `
@@ -1033,7 +1442,6 @@ function renderFilePreviews() {
       <button class="remove-file-btn" data-index="${index}" title="Remove file">✕</button>
     `;
     
-    // Add click handler for image preview
     if (fileData.isImage && fileData.data) {
       previewCard.classList.add("image-preview");
       previewCard.onclick = (e) => {
@@ -1046,7 +1454,6 @@ function renderFilePreviews() {
     elements.filePreviews.appendChild(previewCard);
   });
   
-  // Add event listeners to remove buttons
   document.querySelectorAll('.remove-file-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -1091,7 +1498,6 @@ function showImagePreview(imageSrc, fileName) {
   
   document.body.appendChild(modal);
   
-  // Add close functionality
   modal.querySelector('.close-preview-btn').onclick = () => {
     modal.remove();
   };
@@ -1104,7 +1510,7 @@ function showImagePreview(imageSrc, fileName) {
 }
 
 /* =======================
-   SEND MESSAGE - UPDATED WITH FILE PREVIEWS
+   SEND MESSAGE
 ======================= */
 async function sendMessage() {
   if (state.isGenerating) return;
@@ -1112,7 +1518,6 @@ async function sendMessage() {
   const inputEl = elements.input;
   const text = inputEl.value.trim();
   
-  // Check if there's text or files to send
   if (!text && state.pendingFiles.length === 0) return;
 
   inputEl.value = "";
@@ -1121,7 +1526,6 @@ async function sendMessage() {
     state.currentChat = createChat();
   }
 
-  // Add user message if there's text
   if (text) {
     addMessage({
       role: "user",
@@ -1130,7 +1534,6 @@ async function sendMessage() {
     });
   }
 
-  // Add file previews to chat if there are files
   if (state.pendingFiles.length > 0) {
     const filePreviewHTML = state.pendingFiles.map(fileData => {
       if (fileData.isImage && fileData.data) {
@@ -1141,7 +1544,6 @@ async function sendMessage() {
           </div>
         `;
       } else if (fileData.content) {
-        // Text file preview
         const truncatedContent = fileData.content.length > 500 
           ? fileData.content.substring(0, 500) + '...' 
           : fileData.content;
@@ -1172,7 +1574,6 @@ async function sendMessage() {
           </div>
         `;
       } else {
-        // Binary file preview
         return `
           <div class="file-upload-preview">
             <div style="
@@ -1204,7 +1605,6 @@ async function sendMessage() {
 
   updateWelcomeVisibility();
 
-  // UI STATE
   if (state.settings.typingIndicator) {
     elements.typing.style.opacity = 1;
   }
@@ -1216,11 +1616,10 @@ async function sendMessage() {
     showThinkingModal();
   }
 
-  if (state.settings.researchInternet && text.toLowerCase().includes("search")) {
+  if (state.settings.researchInternet && text && text.toLowerCase().includes("search")) {
     showResearchModal();
   }
 
-  // BUILD FULL PROMPT WITH FILE CONTEXT
   const messagesToSend = [
     {
       role: "system",
@@ -1294,7 +1693,6 @@ ${state.pendingFiles.length > 0 ? `
 The user has uploaded ${state.pendingFiles.length} file(s):
 ${state.pendingFiles.map((file, i) => `${i + 1}. ${file.name} (${formatFileSize(file.size)})${file.content ? '\n' + file.content.substring(0, 1000) + (file.content.length > 1000 ? '...' : '') : ''}`).join('\n')}
 ` : ''}
-${systemPromptAddition}
 
 ==============================
 FINAL CHECK
@@ -1383,7 +1781,6 @@ Verify grammar, formatting, and clarity silently.
     hideThinkingModal();
     hideResearchModal();
 
-    // Clear pending files after sending
     clearAllFiles();
     saveChats();
     playSound("success");
@@ -1391,7 +1788,7 @@ Verify grammar, formatting, and clarity silently.
 }
 
 /* =======================
-   VOICE RECORDING - IMPROVED ERROR HANDLING
+   VOICE RECORDING
 ======================= */
 let mediaRecorder = null;
 let audioChunks = [];
@@ -1492,11 +1889,6 @@ async function startVoiceRecording() {
   }
 }
 
-async function getAIResponse(prompt) {
-  // TEMP placeholder — replace with real API call
-  return "This is a test response.";
-}
-
 function stopVoiceRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
@@ -1507,7 +1899,6 @@ function stopVoiceRecording() {
    WELCOME SCREEN FUNCTIONALITY
 ======================= */
 function setupWelcomeScreen() {
-  // Example query buttons
   document.querySelectorAll('.example-query').forEach(button => {
     button.addEventListener('click', () => {
       const text = button.querySelector('.query-text').textContent;
@@ -1516,7 +1907,6 @@ function setupWelcomeScreen() {
     });
   });
   
-  // Welcome screen send button
   if (elements.welcomeSendBtn) {
     elements.welcomeSendBtn.addEventListener('click', () => {
       const text = elements.welcomeInput.value.trim();
@@ -1526,7 +1916,6 @@ function setupWelcomeScreen() {
     });
   }
   
-  // Welcome screen input enter key
   if (elements.welcomeInput) {
     elements.welcomeInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -1539,7 +1928,6 @@ function setupWelcomeScreen() {
     });
   }
   
-  // Welcome screen voice button
   if (elements.welcomeVoiceBtn) {
     elements.welcomeVoiceBtn.addEventListener('click', () => {
       if (elements.welcomeInput) {
@@ -1550,7 +1938,6 @@ function setupWelcomeScreen() {
     });
   }
   
-  // Welcome screen attach icon
   document.querySelector('.attach-icon')?.addEventListener('click', () => {
     handleFileUpload();
   });
@@ -1558,21 +1945,19 @@ function setupWelcomeScreen() {
 
 function sendMessageFromWelcomeScreen(text) {
   elements.welcomeInput.value = "";
-
-  // Hand off to main sendMessage ONLY
   elements.input.value = text;
   updateWelcomeVisibility();
   sendMessage();
 }
 
 /* =======================
-   FILE UPLOAD - UPDATED FOR PREVIEW AREA
+   FILE UPLOAD
 ======================= */
 function handleFileUpload() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*,.pdf,.txt,.doc,.docx,.json,.js,.html,.css,.py,.java,.cpp,.c,.xml,.csv';
-  input.multiple = true; // Allow multiple files
+  input.multiple = true;
   
   input.onchange = async (e) => {
     const files = Array.from(e.target.files);
@@ -1667,223 +2052,10 @@ function escapeHtml(text) {
 }
 
 /* =======================
-   SETTINGS MANAGEMENT
-======================= */
-function applySettings() {
-  document.documentElement.style.setProperty("--primary", state.settings.accentColor);
-  const accentInput = document.getElementById("accentColor");
-  if (accentInput) accentInput.value = state.settings.accentColor;
-  
-  document.querySelectorAll('.color-preset').forEach(preset => {
-    if (preset.dataset.color === state.settings.accentColor) {
-      preset.classList.add('active');
-    } else {
-      preset.classList.remove('active');
-    }
-  });
-  
-  const modelSelect = document.getElementById("modelSelect");
-  if (modelSelect) {
-    const selectedOption = modelSelect.options[modelSelect.selectedIndex];
-    if (elements.modelDisplay) {
-      elements.modelDisplay.textContent = selectedOption.text;
-    }
-  }
-  
-  const bgSelect = document.getElementById("backgroundSelect");
-  if (bgSelect) {
-    bgSelect.value = state.settings.background;
-    applyBackgroundTheme(state.settings.background);
-  }
-  
-  document.body.classList.remove('font-small', 'font-large');
-  if (state.settings.fontSize !== 'medium') {
-    document.body.classList.add(`font-${state.settings.fontSize}`);
-  }
-  const fontSelect = document.getElementById("fontSizeSelect");
-  if (fontSelect) fontSelect.value = state.settings.fontSize;
-  
-  const animSelect = document.getElementById("animationSelect");
-  if (animSelect) animSelect.value = state.settings.animation;
-  
-  const designSelect = document.getElementById("designSelect");
-  if (designSelect) designSelect.value = state.settings.design;
-  applyDesignStyle(state.settings.design);
-  
-  const contextSelect = document.getElementById("contextWindow");
-  if (contextSelect) contextSelect.value = state.settings.contextWindow;
-  
-  const formatSelect = document.getElementById("responseFormat");
-  if (formatSelect) formatSelect.value = state.settings.responseFormat;
-  
-  const soundToggle = document.getElementById("soundToggle");
-  if (soundToggle) soundToggle.checked = state.settings.soundEnabled;
-  
-  const compactToggle = document.getElementById("compactMode");
-  if (compactToggle) {
-    compactToggle.checked = state.settings.compactMode;
-    document.body.classList.toggle('compact-mode', state.settings.compactMode);
-  }
-  
-  const autoCopyToggle = document.getElementById("autoCopyCode");
-  if (autoCopyToggle) autoCopyToggle.checked = state.settings.autoCopyCode;
-  
-  const typingToggle = document.getElementById("typingIndicator");
-  if (typingToggle) typingToggle.checked = state.settings.typingIndicator;
-  
-  elements.typing.style.display = state.settings.typingIndicator ? 'flex' : 'none';
-  
-  const tempSlider = document.getElementById("temperature");
-  if (tempSlider) tempSlider.value = Math.round(state.settings.temperature * 10);
-  
-  const maxTokensSlider = document.getElementById("maxTokens");
-  if (maxTokensSlider) maxTokensSlider.value = state.settings.maxTokens;
-  
-  const typingSpeedSlider = document.getElementById("typingSpeed");
-  if (typingSpeedSlider) typingSpeedSlider.value = state.settings.typingSpeed;
-  
-  const soundVolumeSlider = document.getElementById("soundVolume");
-  if (soundVolumeSlider) soundVolumeSlider.value = state.settings.soundVolume;
-  
-  const animationSpeedSlider = document.getElementById("animationSpeed");
-  if (animationSpeedSlider) animationSpeedSlider.value = state.settings.animationSpeed;
-  
-  const messageAnimation = document.getElementById("messageAnimation");
-  if (messageAnimation) messageAnimation.value = state.settings.messageAnimation || 'slide';
-  
-  if (elements.deepThinkingToggle) elements.deepThinkingToggle.checked = state.settings.deepThinkingMode;
-  if (elements.researchInternetToggle) elements.researchInternetToggle.checked = state.settings.researchInternet;
-  if (elements.realTimeSearchToggle) elements.realTimeSearchToggle.checked = state.settings.realTimeSearch;
-  
-  if (elements.particleEffectsToggle) elements.particleEffectsToggle.checked = state.settings.particleEffects;
-  if (elements.gradientTextToggle) elements.gradientTextToggle.checked = state.settings.gradientText;
-  
-  if (state.settings.gradientText) {
-    document.documentElement.style.setProperty('--gradient-text', 'linear-gradient(135deg, var(--primary), #b721ff)');
-  }
-  
-  updateSliderProgress();
-}
-
-function applyBackgroundTheme(theme) {
-  const gradient = backgroundThemes[theme] || backgroundThemes["default"];
-  document.body.style.background = gradient;
-}
-
-function applyDesignStyle(style) {
-  let radius = "16px";
-  if (style === "sharp") radius = "4px";
-  else if (style === "neumorphic") radius = "24px";
-  document.documentElement.style.setProperty("--radius", radius);
-}
-
-/* =======================
-   SETTINGS EVENT LISTENERS
-======================= */
-function setupSettingsListeners() {
-  // ... (keep all existing settings listeners, they remain the same)
-  
-  // Clear all files button
-  if (elements.clearAllFiles) {
-    elements.clearAllFiles.onclick = clearAllFiles;
-  }
-}
-
-/* =======================
-   PARTICLE EFFECTS
-======================= */
-function addParticleEffects() {
-  const container = document.querySelector('.chat-area');
-  const canvas = document.createElement('canvas');
-  canvas.id = 'particle-canvas';
-  canvas.style.position = 'fixed';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '-1';
-  container.appendChild(canvas);
-  
-  const ctx = canvas.getContext('2d');
-  const particles = [];
-  
-  function resizeCanvas() {
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-  }
-  
-  class Particle {
-    constructor() {
-      this.x = Math.random() * canvas.width;
-      this.y = Math.random() * canvas.height;
-      this.size = Math.random() * 2 + 1;
-      this.speedX = Math.random() * 1 - 0.5;
-      this.speedY = Math.random() * 1 - 0.5;
-      this.color = state.settings.accentColor;
-      this.alpha = Math.random() * 0.5 + 0.2;
-    }
-    
-    update() {
-      this.x += this.speedX;
-      this.y += this.speedY;
-      
-      if (this.x > canvas.width) this.x = 0;
-      else if (this.x < 0) this.x = canvas.width;
-      
-      if (this.y > canvas.height) this.y = 0;
-      else if (this.y < 0) this.y = canvas.height;
-    }
-    
-    draw() {
-      ctx.fillStyle = this.color;
-      ctx.globalAlpha = this.alpha;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  
-  function initParticles() {
-    for (let i = 0; i < 50; i++) {
-      particles.push(new Particle());
-    }
-  }
-  
-  function animateParticles() {
-    if (!state.settings.particleEffects) {
-      canvas.remove();
-      return;
-    }
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    particles.forEach(particle => {
-      particle.update();
-      particle.draw();
-    });
-    
-    requestAnimationFrame(animateParticles);
-  }
-  
-  resizeCanvas();
-  initParticles();
-  animateParticles();
-  
-  window.addEventListener('resize', resizeCanvas);
-}
-
-function removeParticleEffects() {
-  const canvas = document.getElementById('particle-canvas');
-  if (canvas) {
-    canvas.remove();
-  }
-}
-
-/* =======================
    EVENT LISTENERS
 ======================= */
 function setupEventListeners() {
+  // Verification
   if (elements.sendCodeBtn) elements.sendCodeBtn.onclick = sendVerificationCode;
   if (elements.verifyCodeBtn) elements.verifyCodeBtn.onclick = verifyCode;
   if (elements.resendCodeBtn) elements.resendCodeBtn.onclick = resendCode;
@@ -1891,9 +2063,11 @@ function setupEventListeners() {
   if (elements.completeSetupBtn) elements.completeSetupBtn.onclick = completeSetup;
   if (elements.logoutBtn) elements.logoutBtn.onclick = logout;
   
+  // Modals
   if (elements.cancelResearch) elements.cancelResearch.onclick = cancelResearch;
   if (elements.runArtifact) elements.runArtifact.onclick = runArtifactCode;
   
+  // Verification input handlers
   if (elements.verificationEmail) {
     elements.verificationEmail.addEventListener("keydown", (e) => {
       if (e.key === "Enter") sendVerificationCode();
@@ -1916,6 +2090,7 @@ function setupEventListeners() {
     });
   }
   
+  // Chat
   elements.sendBtn.onclick = () => {
     if (state.isGenerating) {
       state.isGenerating = false;
@@ -1935,6 +2110,7 @@ function setupEventListeners() {
     }
   });
   
+  // Settings
   elements.settingsBtn.onclick = () => {
     elements.settingsPanel.classList.remove("hidden");
     createModalOverlay();
@@ -1943,8 +2119,10 @@ function setupEventListeners() {
   elements.closeSettings.onclick = () => {
     elements.settingsPanel.classList.add("hidden");
     removeModalOverlay();
+    saveSettings();
   };
   
+  // Artifact
   elements.closeArtifact.onclick = () => {
     elements.artifactPanel.classList.remove("visible");
     state.currentArtifact = null;
@@ -1977,6 +2155,7 @@ function setupEventListeners() {
     }
   };
   
+  // Chat management
   const newChatBtn = document.getElementById("newChat");
   if (newChatBtn) {
     newChatBtn.onclick = () => {
@@ -2001,6 +2180,7 @@ function setupEventListeners() {
     };
   }
   
+  // Voice input
   const voiceBtn = document.getElementById("voiceInputBtn");
   if (voiceBtn) {
     voiceBtn.onclick = () => {
@@ -2008,6 +2188,7 @@ function setupEventListeners() {
     };
   }
   
+  // File upload
   const fileBtn = document.getElementById("fileUploadBtn");
   if (fileBtn) {
     fileBtn.onclick = () => {
@@ -2015,6 +2196,7 @@ function setupEventListeners() {
     };
   }
   
+  // Quick responses
   document.querySelectorAll('.response-template').forEach(btn => {
     btn.onclick = () => {
       elements.input.value = btn.textContent;
@@ -2036,6 +2218,11 @@ function setupEventListeners() {
       }, 200);
     }
   });
+  
+  // File preview clear button
+  if (elements.clearAllFiles) {
+    elements.clearAllFiles.onclick = clearAllFiles;
+  }
 }
 
 function updateWelcomeVisibility() {
@@ -2111,19 +2298,16 @@ function showNotification(message) {
 function init() {
   checkVerification();
   applySettings();
+  setupSettingsCategories();
+  setupModernSliders();
   setupSettingsListeners();
   setupEventListeners();
-  setupWelcomeScreen(); 
+  setupWelcomeScreen();
   loadChat(state.currentChat);
-  checkVerification();
   updateStats();
   updateUserDisplay();
   
-  if (state.settings.particleEffects) {
-    addParticleEffects();
-  }
-  
-  console.log("Quist AI app initialized with modern welcome screen and file previews!");
+  console.log("Quist AI app initialized with modern settings and improved sliders!");
 }
 
 // Start the app
