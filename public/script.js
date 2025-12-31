@@ -584,6 +584,28 @@ function saveToLocalStorage(key, value) {
 function saveSettings() {
   saveToLocalStorage("appSettings", state.settings);
 }
+// =======================
+// APPLY SETTINGS (GLOBAL)
+// =======================
+function applySettings() {
+  // Accent color (UI theme)
+  document.documentElement.style.setProperty(
+    "--primary",
+    state.settings.accentColor
+  );
+}
+
+const accentColorInput = document.getElementById("accentColor");
+
+if (accentColorInput) {
+  accentColorInput.addEventListener("input", () => {
+    state.settings.accentColor = accentColorInput.value;
+    applySettings();
+    saveSettings();
+  });
+}
+
+
 
 function saveChats() {
   saveToLocalStorage("chats", state.chats);
@@ -595,29 +617,35 @@ function saveChats() {
    IMPROVED SLIDER FUNCTIONS
 ======================= */
 function updateSliderProgress() {
-  const tempValue = (parseInt(document.getElementById("temperature").value) / 10).toFixed(1);
-  const tempPercent = (parseInt(document.getElementById("temperature").value) / 20) * 100;
-  elements.temperatureProgress.style.width = `${tempPercent}%`;
-  document.getElementById("temperatureValue").textContent = tempValue;
-  
-  const maxTokensValue = parseInt(document.getElementById("maxTokens").value);
-  const maxTokensPercent = ((maxTokensValue - 512) / (8192 - 512)) * 100;
-  elements.maxTokensProgress.style.width = `${maxTokensPercent}%`;
-  document.getElementById("maxTokensValue").textContent = maxTokensValue.toLocaleString();
-  
-  const typingSpeedValue = parseInt(document.getElementById("typingSpeed").value);
-  const typingSpeedPercent = ((typingSpeedValue - 1) / 4) * 100;
-  elements.typingSpeedProgress.style.width = `${typingSpeedPercent}%`;
-  document.getElementById("typingSpeedValue").textContent = typingSpeedValue;
-  
-  const soundVolumeValue = parseInt(document.getElementById("soundVolume").value);
-  elements.soundVolumeProgress.style.width = `${soundVolumeValue}%`;
-  document.getElementById("soundVolumeValue").textContent = `${soundVolumeValue}%`;
-  
-  const animationSpeedValue = parseFloat(document.getElementById("animationSpeed").value);
-  const animationSpeedPercent = ((animationSpeedValue - 0.5) / 2.5) * 100;
-  elements.animationSpeedProgress.style.width = `${animationSpeedPercent}%`;
-  document.getElementById("animationSpeedValue").textContent = `${animationSpeedValue.toFixed(1)}x`;
+  const tempSlider = document.getElementById("temperature");
+  const maxTokensSlider = document.getElementById("maxTokens");
+
+  if (tempSlider) {
+    const tempValue = (parseInt(tempSlider.value) / 10).toFixed(1);
+    const tempPercent = (parseInt(tempSlider.value) / 20) * 100;
+    elements.temperatureProgress.style.width = `${tempPercent}%`;
+    document.getElementById("temperatureValue").textContent = tempValue;
+  }
+
+  if (maxTokensSlider) {
+    const maxTokensValue = parseInt(maxTokensSlider.value);
+    const maxTokensPercent = ((maxTokensValue - 512) / (8192 - 512)) * 100;
+    elements.maxTokensProgress.style.width = `${maxTokensPercent}%`;
+    document.getElementById("maxTokensValue").textContent = maxTokensValue.toLocaleString();
+  }
+}
+
+
+
+
+function bindSetting(id, key, transform = v => v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.addEventListener("input", () => {
+    state.settings[key] = transform(el.value);
+    saveSettings();
+  });
 }
 
 /* =======================
@@ -1765,6 +1793,35 @@ function applySettings() {
   updateSliderProgress();
 }
 
+
+
+// =======================
+// SETTINGS BINDINGS
+// =======================
+function bindSetting(id, key, transform = v => v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.addEventListener("input", () => {
+    state.settings[key] = transform(el.value);
+    saveSettings();
+  });
+}
+
+
+
+// =======================
+// BIND SETTINGS TO UI
+// =======================
+bindSetting("temperature", "temperature", v => parseInt(v) / 10);
+bindSetting("maxTokens", "maxTokens", v => parseInt(v));
+bindSetting("contextWindow", "contextWindow");
+bindSetting("responseFormat", "responseFormat");
+
+
+
+
+
 function applyBackgroundTheme(theme) {
   const gradient = backgroundThemes[theme] || backgroundThemes["default"];
   document.body.style.background = gradient;
@@ -2078,6 +2135,19 @@ function removeModalOverlay() {
   if (overlay) overlay.classList.remove('active');
 }
 
+function bindSetting(id, key, transform = v => v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.addEventListener("input", () => {
+    state.settings[key] = transform(el.value);
+    saveSettings();
+    applySettings();
+  });
+}
+
+
+
 function showNotification(message) {
   const notification = document.createElement('div');
   notification.className = 'notification';
@@ -2118,6 +2188,8 @@ function init() {
   checkVerification();
   updateStats();
   updateUserDisplay();
+  applySettings();
+
   
   if (state.settings.particleEffects) {
     addParticleEffects();
