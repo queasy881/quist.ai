@@ -390,44 +390,30 @@ async function sendVerificationCode() {
 
 
 async function verifyCode() {
-  const code = elements.verificationCode.value.trim();
-  
-  if (!code || code.length !== 6) {
-    showVerificationError("Please enter a 6-digit code");
+  const input = document.getElementById("verificationCode")?.value.trim();
+
+  if (!input) {
+    showVerificationError("Please enter the verification code");
     return;
   }
-  
-  elements.verifyCodeBtn.disabled = true;
-  elements.verifyCodeBtn.textContent = "Verifying...";
-  
-  try {
-    const res = await fetch(`${VERIFICATION_URL}/verify-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        email: state.userEmail, 
-        code 
-      })
-    });
-    
-    const data = await res.json();
-    
-    if (data.success) {
-      elements.codeStep.classList.add("hidden");
-      elements.usernameStep.classList.remove("hidden");
-      showVerificationSuccess("Email verified! Please choose a username.");
-    } else {
-      showVerificationError(data.error || "Invalid verification code");
-      elements.verifyCodeBtn.disabled = false;
-      elements.verifyCodeBtn.textContent = "✅ Verify Code";
-    }
-  } catch (error) {
-    console.error("Verification error:", error);
-    showVerificationError("Network error. Please try again.");
-    elements.verifyCodeBtn.disabled = false;
-    elements.verifyCodeBtn.textContent = "✅ Verify Code";
+
+  if (input !== state.verificationCode) {
+    showVerificationError("Invalid verification code");
+    return;
   }
+
+  // ✅ SUCCESS
+  state.isVerified = true;
+  localStorage.setItem("verified", "true");
+  localStorage.setItem("verifiedEmail", state.userEmail);
+
+  showVerificationSuccess("Email verified successfully");
+
+  setTimeout(() => {
+    closeVerificationModal();
+  }, 800);
 }
+
 
 function completeSetup() {
   const username = elements.usernameInput.value.trim();
