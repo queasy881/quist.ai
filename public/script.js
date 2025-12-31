@@ -410,7 +410,10 @@ async function verifyCode() {
   showVerificationSuccess("Email verified successfully");
 
   setTimeout(() => {
-    closeVerificationModal();
+    elements.verificationModal.classList.add("hidden");
+    updateUserDisplay();
+    showNotification("Email verified!");
+    playSound("success");
   }, 800);
 }
 
