@@ -140,7 +140,8 @@ app.post("/api/chat", async (req, res) => {
     console.log("Chat request received");
     
     const { messages, max_tokens = 4096, temperature = 0.7 } = req.body;
-const model = "claude-3-5-sonnet-latest";
+const model = "claude-3-haiku-20240307";
+
 
 
 
