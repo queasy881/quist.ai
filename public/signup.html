@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sign Up – Quist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-card">
+
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-subtitle">Join Quist in seconds</p>
+
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" />
+      </div>
+
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="signupPassword" placeholder="At least 8 characters" />
+      </div>
+
+      <button id="signupBtn" class="auth-btn">Sign Up</button>
+
+      <div id="signupError" class="auth-error hidden"></div>
+
+      <div class="auth-footer">
+        <span>Already have an account?</span>
+        <a href="signin.html">Sign in</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EMAIL VERIFICATION MODAL -->
+  <div id="verificationModal" class="verification-modal hidden">
+    <div class="verification-box">
+
+      <h2>Verify your email</h2>
+      <p>We’ve sent a 6-digit code to:</p>
+      <strong id="displayEmail"></strong>
+
+      <input
+        type="text"
+        id="verificationCode"
+        placeholder="Enter verification code"
+        maxlength="6"
+      />
+
+      <button id="verifyCodeBtn">Verify</button>
+      <button id="resendCodeBtn">Resend code</button>
+
+      <div id="verificationError" class="auth-error hidden"></div>
+      <div id="verificationSuccess" class="auth-success hidden">
+        Email verified successfully!
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIGNUP LOGIC -->
+  <script>
+    const signupBtn = document.getElementById("signupBtn");
+    const errorBox = document.getElementById("signupError");
+
+    signupBtn.onclick = async () => {
+      const email = document.getElementById("signupEmail").value.trim();
+      const password = document.getElementById("signupPassword").value;
+
+      errorBox.classList.add("hidden");
+
+      if (!email || !password) {
+        errorBox.textContent = "Please fill in all fields";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      if (password.length < 8) {
+        errorBox.textContent = "Password must be at least 8 characters";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Sign up failed");
+        }
+
+        document.getElementById("displayEmail").textContent = email;
+        document.getElementById("verificationModal").classList.remove("hidden");
+
+        sendVerificationCode(email);
+
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove("hidden");
+      }
+    };
+  </script>
+
+  <!-- VERIFICATION LOGIC -->
+  <script>
+    async function sendVerificationCode(email) {
+      try {
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+        localStorage.setItem("pendingVerificationCode", code);
+        localStorage.setItem("pendingVerificationEmail", email);
+
+        const res = await fetch("/api/send-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, code })
+        });
+
+        const data = await res.json();
+        if (!data.success) throw new Error();
+      } catch {
+        errorBox.textContent = "Failed to send verification code";
+        errorBox.classList.remove("hidden");
+      }
+    }
+
+    document.getElementById("verifyCodeBtn").onclick = () => {
+      const input = document.getElementById("verificationCode").value.trim();
+      const realCode = localStorage.getItem("pendingVerificationCode");
+
+      if (input !== realCode) {
+        document.getElementById("verificationError").textContent = "Invalid code";
+        document.getElementById("verificationError").classList.remove("hidden");
+        return;
+      }
+
+      document.getElementById("verificationSuccess").classList.remove("hidden");
+      localStorage.setItem(
+        "verifiedEmail",
+        localStorage.getItem("pendingVerificationEmail")
+      );
+
+      setTimeout(() => {
+  localStorage.setItem("loggedIn", "true");
+  localStorage.setItem(
+    "userEmail",
+    localStorage.getItem("pendingVerificationEmail")
+  );
+  window.location.href = "/";
+}, 1000);
+
+    };
+
+    document.getElementById("resendCodeBtn").onclick = () => {
+      const email = localStorage.getItem("pendingVerificationEmail");
+      if (email) sendVerificationCode(email);
+    };
+  </script>
+
+</body>
+</html>
