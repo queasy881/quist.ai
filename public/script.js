@@ -1,6 +1,8 @@
 // Enhanced Chat Application - Complete Rewrite with Email Verification
 const VERIFICATION_URL = "/api";
 const BACKEND_URL = "/api/chat";
+const VOICE_TRANSCRIPTION_URL = "/api/transcribe"; // New endpoint for voice transcription
+
 
 /* =======================
    DOM ELEMENTS
@@ -1185,6 +1187,7 @@ const messagesToSend = state.chats[state.currentChat].messages
 })
 
 });
+
 
 
 if (!response.ok) {
