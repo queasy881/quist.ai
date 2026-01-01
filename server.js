@@ -139,7 +139,9 @@ app.post("/api/chat", async (req, res) => {
   try {
     console.log("Chat request received");
     
-    const { messages, model = "claude-3-5-sonnet", max_tokens = 4096, temperature = 0.7 } = req.body;
+    const { messages, max_tokens = 4096, temperature = 0.7 } = req.body;
+const model = "claude-3-5-sonnet";
+
 
     if (!Array.isArray(messages)) {
       return res.status(400).json({ error: "Messages must be an array" });
