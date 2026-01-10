@@ -256,35 +256,40 @@ app.post("/api/login", async (req, res) => {
 
 app.post("/api/send-verification", async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { email } = req.body;
 
-    if (!email || !code) {
-      return res.status(400).json({ error: "Email and code required" });
+    if (!email) {
+      return res.status(400).json({ error: "Email required" });
     }
 
     if (!resend) {
       return res.status(500).json({ error: "Email service not configured" });
     }
 
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // TODO (recommended): store code in DB with expiry
+    console.log("Verification code for", email, ":", code);
+
     const { error } = await resend.emails.send({
       from: "Quist AI <verify@resend.dev>",
       to: email,
-      subject: "Your Quist AI Verification Code",
-      html: `<h2>Verification Code: ${code}</h2>`
+      subject: "Your Quist Verification Code",
+      html: `<h2>Your verification code:</h2><h1>${code}</h1>`
     });
 
     if (error) {
-      console.error("Email error:", error);
+      console.error(error);
       return res.status(500).json({ error: "Failed to send email" });
     }
 
     res.json({ success: true });
-    
   } catch (err) {
-    console.error("Verification error:", err);
+    console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 app.post("/api/report-bug", (req, res) => {
   try {
