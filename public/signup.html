@@ -5,167 +5,664 @@
   <title>Sign Up – Quist</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Additional styles for signup page */
+    .auth-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 10% 20%, rgba(0, 212, 255, 0.2) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(183, 33, 255, 0.2) 0%, transparent 40%),
+        linear-gradient(135deg, #0a0e27 0%, #1a0b2e 100%);
+      z-index: -1;
+    }
+    
+    .auth-background-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(20px);
+    }
+    
+    .password-strength {
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    .password-requirements {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    
+    .requirement {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      transition: color 0.3s;
+    }
+    
+    .requirement.met {
+      color: #00ff88;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.5;
+    }
+    
+    .checkbox-label input {
+      display: none;
+    }
+    
+    .checkmark {
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      position: relative;
+      transition: all 0.3s;
+    }
+    
+    .checkbox-label input:checked + .checkmark {
+      background: #00d4ff;
+      border-color: #00d4ff;
+    }
+    
+    .checkmark::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 6px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .checkbox-label input:checked + .checkmark::after {
+      opacity: 1;
+    }
+    
+    .checkbox-text {
+      flex: 1;
+    }
+    
+    .inline-link {
+      color: #00d4ff;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .inline-link:hover {
+      text-decoration: underline;
+    }
+    
+    /* Verification modal styles */
+    .verification-step-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 30px;
+    }
+    
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .step-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      transition: all 0.3s;
+    }
+    
+    .step.active .step-number {
+      background: #00d4ff;
+      border-color: #00d4ff;
+      color: white;
+    }
+    
+    .step-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .step-line {
+      width: 40px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 0 8px;
+    }
+    
+    .verification-input-group {
+      margin: 24px 0;
+      text-align: left;
+    }
+    
+    .verification-input-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .verification-code-input {
+      width: 100%;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: white;
+      font-size: 24px;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 8px;
+      outline: none;
+      transition: all 0.3s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .verification-code-input:focus {
+      border-color: #00d4ff;
+      background: rgba(0, 212, 255, 0.05);
+      box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.1);
+    }
+    
+    .verification-help {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      text-align: center;
+    }
+    
+    .verification-help a {
+      color: #00d4ff;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .verification-help a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 
 <body class="auth-page">
 
+  <div class="auth-background">
+    <div class="auth-background-overlay"></div>
+  </div>
+
   <div class="auth-container">
     <div class="auth-card">
-
-      <h1 class="auth-title">Create your account</h1>
-      <p class="auth-subtitle">Join Quist in seconds</p>
-
-      <div class="auth-field">
-        <label>Email</label>
-        <input type="email" id="signupEmail" placeholder="you@example.com" />
+      
+      <div class="auth-header">
+        <div class="auth-logo">
+          <div class="auth-logo-icon">Q</div>
+        </div>
+        <h1 class="auth-title">Join Quist</h1>
+        <p class="auth-subtitle">Start your intelligent conversations today</p>
       </div>
 
-      <div class="auth-field">
-        <label>Password</label>
-        <input type="password" id="signupPassword" placeholder="At least 8 characters" />
+      <form id="signupForm" class="auth-form">
+        <div class="auth-field">
+          <label for="signupEmail" class="field-label">
+            <span class="label-text">Email Address</span>
+          </label>
+          <div class="input-wrapper">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <input
+              type="email"
+              id="signupEmail"
+              class="auth-input"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="signupPassword" class="field-label">
+            <span class="label-text">Password</span>
+            <span class="password-strength" id="passwordStrength"></span>
+          </label>
+          <div class="input-wrapper">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <input
+              type="password"
+              id="signupPassword"
+              class="auth-input"
+              placeholder="At least 8 characters"
+              autocomplete="new-password"
+              required
+            />
+            <button type="button" class="password-toggle" id="togglePassword">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+          <div class="password-requirements">
+            <div class="requirement" data-requirement="length">8+ characters</div>
+            <div class="requirement" data-requirement="uppercase">Uppercase letter</div>
+            <div class="requirement" data-requirement="number">Number</div>
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label class="checkbox-label">
+            <input type="checkbox" id="termsCheckbox" required>
+            <span class="checkmark"></span>
+            <span class="checkbox-text">
+              I agree to the <a href="tos.html" class="inline-link">Terms of Service</a> and 
+              <a href="#" class="inline-link">Privacy Policy</a>
+            </span>
+          </label>
+        </div>
+
+        <button type="button" id="signupBtn" class="auth-btn">
+          <span class="btn-text">Create Account</span>
+          <span class="btn-loading hidden">Creating account...</span>
+        </button>
+
+        <div id="signupError" class="auth-error hidden">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span class="error-text"></span>
+        </div>
+
+        <div class="auth-divider">
+          <span>or sign up with</span>
+        </div>
+
+        <button type="button" class="social-btn google-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <span>Google</span>
+        </button>
+
+        <div class="auth-footer">
+          <span>Already have an account?</span>
+          <a href="signin.html" class="auth-link">Sign in</a>
+        </div>
+      </form>
+
+      <div class="auth-security">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>Your data is encrypted and secure</span>
       </div>
-
-      <button id="signupBtn" class="auth-btn">Sign Up</button>
-
-      <div id="signupError" class="auth-error hidden"></div>
-
-      <div class="auth-footer">
-        <span>Already have an account?</span>
-        <a href="signin.html">Sign in</a>
-      </div>
-
     </div>
   </div>
 
-  <!-- EMAIL VERIFICATION MODAL -->
+  <!-- VERIFICATION MODAL -->
   <div id="verificationModal" class="verification-modal hidden">
-    <div class="verification-box">
-
-      <h2>Verify your email</h2>
-      <p>We’ve sent a 6-digit code to:</p>
-      <strong id="displayEmail"></strong>
-
-      <input
-        type="text"
-        id="verificationCode"
-        placeholder="Enter verification code"
-        maxlength="6"
-      />
-
-      <button id="verifyCodeBtn">Verify</button>
-      <button id="resendCodeBtn">Resend code</button>
-
-      <div id="verificationError" class="auth-error hidden"></div>
-      <div id="verificationSuccess" class="auth-success hidden">
-        Email verified successfully!
+    <div class="verification-content">
+      <div class="verification-step-indicator">
+        <div class="step active">
+          <div class="step-number">1</div>
+          <span class="step-label">Email</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <span class="step-label">Verify</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <span class="step-label">Complete</span>
+        </div>
       </div>
 
+      <h2>Verify Your Email</h2>
+      <p class="verification-subtitle">We've sent a 6-digit code to:</p>
+      
+      <div class="email-display">
+        <span class="email-label">Verification email sent to</span>
+        <span id="displayEmail" class="email-value"></span>
+      </div>
+
+      <div class="verification-input-group">
+        <label for="verificationCode">Enter verification code</label>
+        <input
+          type="text"
+          id="verificationCode"
+          class="verification-code-input"
+          placeholder="000000"
+          maxlength="6"
+          pattern="[0-9]*"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+        />
+        <p class="input-hint">Enter the 6-digit code sent to your email</p>
+      </div>
+
+      <div class="verification-actions">
+        <button id="verifyCodeBtn" class="verification-btn primary">
+          <span class="btn-text">Verify Email</span>
+          <span class="btn-loading hidden">Verifying...</span>
+        </button>
+        <button id="resendCodeBtn" class="verification-btn secondary">
+          <span class="btn-text">Resend Code</span>
+          <span class="btn-loading hidden">Sending...</span>
+        </button>
+      </div>
+
+      <div id="verificationError" class="verification-message error hidden">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span class="error-text"></span>
+      </div>
+      
+      <div id="verificationSuccess" class="verification-message success hidden">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span class="success-text"></span>
+      </div>
+
+      <div class="verification-help">
+        <p>Didn't receive the email? Check your spam folder or <a href="#" id="changeEmailLink">use a different email address</a></p>
+      </div>
     </div>
   </div>
 
-  <!-- SIGNUP LOGIC -->
   <script>
-    const signupBtn = document.getElementById("signupBtn");
-    const errorBox = document.getElementById("signupError");
+    document.addEventListener('DOMContentLoaded', function() {
+      const signupBtn = document.getElementById('signupBtn');
+      const emailInput = document.getElementById('signupEmail');
+      const passwordInput = document.getElementById('signupPassword');
+      const errorBox = document.getElementById('signupError');
+      const errorText = errorBox.querySelector('.error-text');
+      const form = document.getElementById('signupForm');
+      const togglePasswordBtn = document.getElementById('togglePassword');
+      const passwordStrength = document.getElementById('passwordStrength');
+      const requirements = document.querySelectorAll('.requirement');
+      const termsCheckbox = document.getElementById('termsCheckbox');
 
-    signupBtn.onclick = async () => {
-      const email = document.getElementById("signupEmail").value.trim();
-      const password = document.getElementById("signupPassword").value;
+      // Password toggle
+      togglePasswordBtn.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.classList.toggle('password-visible');
+      });
 
-      errorBox.classList.add("hidden");
+      // Password strength checker
+      passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        
+        // Length check
+        if (password.length >= 8) {
+          strength++;
+          updateRequirement('length', true);
+        } else {
+          updateRequirement('length', false);
+        }
+        
+        // Uppercase check
+        if (/[A-Z]/.test(password)) {
+          strength++;
+          updateRequirement('uppercase', true);
+        } else {
+          updateRequirement('uppercase', false);
+        }
+        
+        // Number check
+        if (/\d/.test(password)) {
+          strength++;
+          updateRequirement('number', true);
+        } else {
+          updateRequirement('number', false);
+        }
+        
+        // Update strength display
+        const strengthText = ['Weak', 'Fair', 'Good', 'Strong'];
+        const strengthColors = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff'];
+        passwordStrength.textContent = strengthText[strength] || 'Weak';
+        passwordStrength.style.color = strengthColors[strength] || '#ff4757';
+      });
 
-      if (!email || !password) {
-        errorBox.textContent = "Please fill in all fields";
-        errorBox.classList.remove("hidden");
-        return;
+      function updateRequirement(type, met) {
+        const req = document.querySelector(`[data-requirement="${type}"]`);
+        if (req) {
+          if (met) {
+            req.textContent = '✓ ' + req.textContent.replace(/^[✓✗]\s*/, '');
+            req.classList.add('met');
+          } else {
+            req.textContent = '✗ ' + req.textContent.replace(/^[✓✗]\s*/, '');
+            req.classList.remove('met');
+          }
+        }
       }
 
-      if (password.length < 8) {
-        errorBox.textContent = "Password must be at least 8 characters";
-        errorBox.classList.remove("hidden");
+      // Form submission
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        handleSignup();
+      });
+
+      signupBtn.onclick = handleSignup;
+
+      async function handleSignup() {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        
+        errorBox.classList.add('hidden');
+        signupBtn.classList.add('loading');
+        signupBtn.disabled = true;
+
+        if (!email || !password) {
+          showError('Please fill in all fields');
+          resetButton();
+          return;
+        }
+
+        if (password.length < 8) {
+          showError('Password must be at least 8 characters');
+          resetButton();
+          return;
+        }
+
+        if (!termsCheckbox.checked) {
+          showError('Please agree to the Terms of Service');
+          resetButton();
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || "Sign up failed. Please try again.");
+          }
+
+          // Success - show verification modal
+          document.getElementById('displayEmail').textContent = email;
+          document.getElementById('verificationModal').classList.remove('hidden');
+          
+          // Store pending verification email
+          localStorage.setItem("pendingVerificationEmail", email);
+          
+          resetButton();
+
+        } catch (err) {
+          showError(err.message);
+          resetButton();
+        }
+      }
+
+      function resetButton() {
+        signupBtn.classList.remove('loading');
+        signupBtn.disabled = false;
+      }
+
+      function showError(message) {
+        errorText.textContent = message;
+        errorBox.classList.remove('hidden');
+      }
+    });
+  </script>
+
+  <!-- Verification logic -->
+  <script>
+    document.getElementById('verifyCodeBtn').onclick = async function() {
+      const input = document.getElementById('verificationCode').value.trim();
+      const email = localStorage.getItem('pendingVerificationEmail');
+      const errorBox = document.getElementById('verificationError');
+      const successBox = document.getElementById('verificationSuccess');
+
+      errorBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      if (!input || input.length !== 6) {
+        errorBox.querySelector('.error-text').textContent = 'Please enter a valid 6-digit code';
+        errorBox.classList.remove('hidden');
         return;
       }
 
       try {
-        const res = await fetch("/api/signup", {
+        const res = await fetch("/api/verify-code", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, code: input })
         });
 
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || "Sign up failed");
+          throw new Error(data.error || "Verification failed");
         }
 
-        document.getElementById("displayEmail").textContent = email;
-        document.getElementById("verificationModal").classList.remove("hidden");
+        successBox.querySelector('.success-text').textContent = 'Email verified successfully!';
+        successBox.classList.remove('hidden');
+        
+        localStorage.setItem('verifiedEmail', email);
+        localStorage.removeItem('pendingVerificationEmail');
 
-        sendVerificationCode(email);
-
+        setTimeout(() => {
+          localStorage.setItem('loggedIn', 'true');
+          localStorage.setItem('userEmail', email);
+          window.location.href = '/';
+        }, 1500);
       } catch (err) {
-        errorBox.textContent = err.message;
-        errorBox.classList.remove("hidden");
+        errorBox.querySelector('.error-text').textContent = err.message;
+        errorBox.classList.remove('hidden');
       }
     };
-  </script>
 
-  <!-- VERIFICATION LOGIC -->
-  <script>
-    async function sendVerificationCode(email) {
-      try {
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+    document.getElementById('resendCodeBtn').onclick = async function() {
+      const email = localStorage.getItem('pendingVerificationEmail');
+      if (email) {
+        try {
+          const res = await fetch("/api/resend-verification", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email })
+          });
 
-        localStorage.setItem("pendingVerificationCode", code);
-        localStorage.setItem("pendingVerificationEmail", email);
+          const data = await res.json();
 
-        const res = await fetch("/api/send-verification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, code })
-        });
-
-        const data = await res.json();
-        if (!data.success) throw new Error();
-      } catch {
-        errorBox.textContent = "Failed to send verification code";
-        errorBox.classList.remove("hidden");
+          if (data.success) {
+            showNotification('New verification code sent!');
+          } else {
+            showNotification('Failed to resend code. Please try again.');
+          }
+        } catch (err) {
+          showNotification('Network error. Please try again.');
+        }
       }
+    };
+
+    document.getElementById('changeEmailLink').onclick = function(e) {
+      e.preventDefault();
+      localStorage.removeItem('pendingVerificationEmail');
+      document.getElementById('verificationModal').classList.add('hidden');
+    };
+
+    function showNotification(message) {
+      const notification = document.createElement('div');
+      notification.className = 'notification';
+      notification.textContent = message;
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #2ed573;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
     }
-
-    document.getElementById("verifyCodeBtn").onclick = () => {
-      const input = document.getElementById("verificationCode").value.trim();
-      const realCode = localStorage.getItem("pendingVerificationCode");
-
-      if (input !== realCode) {
-        document.getElementById("verificationError").textContent = "Invalid code";
-        document.getElementById("verificationError").classList.remove("hidden");
-        return;
-      }
-
-      document.getElementById("verificationSuccess").classList.remove("hidden");
-      localStorage.setItem(
-        "verifiedEmail",
-        localStorage.getItem("pendingVerificationEmail")
-      );
-
-      setTimeout(() => {
-  localStorage.setItem("loggedIn", "true");
-  localStorage.setItem(
-    "userEmail",
-    localStorage.getItem("pendingVerificationEmail")
-  );
-  window.location.href = "/";
-}, 1000);
-
-    };
-
-    document.getElementById("resendCodeBtn").onclick = () => {
-      const email = localStorage.getItem("pendingVerificationEmail");
-      if (email) sendVerificationCode(email);
-    };
   </script>
-
 </body>
 </html>
