@@ -1,8 +1,7 @@
 // Enhanced Chat Application - Complete Rewrite with Email Verification
 const VERIFICATION_URL = "/api";
 const BACKEND_URL = "/api/chat";
-const VOICE_TRANSCRIPTION_URL = "/api/transcribe"; // New endpoint for voice transcription
-
+const VOICE_TRANSCRIPTION_URL = "/api/transcribe";
 
 /* =======================
    DOM ELEMENTS
@@ -25,7 +24,6 @@ const elements = {
   runArtifact: document.getElementById("runArtifact"),
   totalChats: document.getElementById("totalChats"),
   totalMessages: document.getElementById("totalMessages"),
-  // Verification elements
   verificationModal: document.getElementById("verificationModal"),
   emailStep: document.getElementById("emailStep"),
   codeStep: document.getElementById("codeStep"),
@@ -44,42 +42,43 @@ const elements = {
   displayUsername: document.getElementById("displayUsername"),
   displayUserEmail: document.getElementById("displayUserEmail"),
   logoutBtn: document.getElementById("logoutBtn"),
-  // New modal elements
   thinkingModal: document.getElementById("thinkingModal"),
   researchModal: document.getElementById("researchModal"),
   cancelResearch: document.getElementById("cancelResearch"),
-  // Quick responses
   quickResponses: document.getElementById("quickResponses"),
-  // Sound toggles
-  soundMessageSent: document.getElementById("soundMessageSent"),
-  soundMessageReceived: document.getElementById("soundMessageReceived"),
-  soundTyping: document.getElementById("soundTyping"),
-  soundSuccess: document.getElementById("soundSuccess"),
-  soundError: document.getElementById("soundError"),
-  soundThinking: document.getElementById("soundThinking"),
-  soundResearch: document.getElementById("soundResearch"),
-  soundVolume: document.getElementById("soundVolume"),
-  // Feature toggles
-  deepThinkingToggle: document.getElementById("deepThinkingToggle"),
-  researchInternetToggle: document.getElementById("researchInternetToggle"),
-  realTimeSearchToggle: document.getElementById("realTimeSearchToggle"),
-  particleEffectsToggle: document.getElementById("particleEffectsToggle"),
-  gradientTextToggle: document.getElementById("gradientTextToggle"),
-  // New UI elements for improved settings
-  modelDisplay: document.getElementById("modelDisplay"),
-  temperatureProgress: document.getElementById("temperatureProgress"),
-  maxTokensProgress: document.getElementById("maxTokensProgress"),
-  typingSpeedProgress: document.getElementById("typingSpeedProgress"),
-  soundVolumeProgress: document.getElementById("soundVolumeProgress"),
-  animationSpeedProgress: document.getElementById("animationSpeedProgress"),
-  // Welcome screen elements
   welcomeInput: document.getElementById("welcomeInput"),
   welcomeVoiceBtn: document.getElementById("welcomeVoiceBtn"),
   welcomeSendBtn: document.getElementById("welcomeSendBtn"),
-  // NEW: File preview elements
   filePreviewArea: document.getElementById("filePreviewArea"),
   filePreviews: document.getElementById("filePreviews"),
-  clearAllFiles: document.getElementById("clearAllFiles")
+  clearAllFiles: document.getElementById("clearAllFiles"),
+  modelSelect: document.getElementById("modelSelect"),
+  temperature: document.getElementById("temperature"),
+  temperatureValue: document.getElementById("temperatureValue"),
+  maxTokens: document.getElementById("maxTokens"),
+  maxTokensValue: document.getElementById("maxTokensValue"),
+  accentColor: document.getElementById("accentColor"),
+  backgroundSelect: document.getElementById("backgroundSelect"),
+  fontSize: document.getElementById("fontSize"),
+  deepThinkingToggle: document.getElementById("deepThinkingToggle"),
+  researchInternetToggle: document.getElementById("researchInternetToggle"),
+  typingIndicatorToggle: document.getElementById("typingIndicatorToggle"),
+  autoOpenArtifactsToggle: document.getElementById("autoOpenArtifactsToggle"),
+  soundToggle: document.getElementById("soundToggle"),
+  soundVolume: document.getElementById("soundVolume"),
+  soundVolumeValue: document.getElementById("soundVolumeValue"),
+  soundMessageSentToggle: document.getElementById("soundMessageSentToggle"),
+  soundMessageReceivedToggle: document.getElementById("soundMessageReceivedToggle"),
+  soundSuccessToggle: document.getElementById("soundSuccessToggle"),
+  exportChat: document.getElementById("exportChat"),
+  backupChats: document.getElementById("backupChats"),
+  exportSettings: document.getElementById("exportSettings"),
+  resetSettings: document.getElementById("resetSettings"),
+  clearCache: document.getElementById("clearCache"),
+  storageUsage: document.getElementById("storageUsage"),
+  localStorageUsage: document.getElementById("localStorageUsage"),
+  fileUploadBtn: document.getElementById("fileUploadBtn"),
+  voiceInputBtn: document.getElementById("voiceInputBtn")
 };
 
 /* =======================
@@ -124,7 +123,7 @@ function createSound(frequency, duration, volume = 0.5) {
 function playSound(soundName) {
   if (!state.settings || !state.settings.soundEnabled) return;
 
-  const toggleKey = `sound${soundName.charAt(0).toUpperCase() + soundName.slice(1)}`;
+  const toggleKey = `sound${soundName.charAt(0).toUpperCase() + soundName.slice(1)}Toggle`;
   const soundToggle = elements[toggleKey];
 
   if (soundToggle && soundToggle.checked === false) return;
@@ -141,7 +140,6 @@ function playSound(soundName) {
     );
   } catch {}
 }
-
 
 function getFrequencyForSound(soundName) {
   switch(soundName) {
@@ -177,39 +175,45 @@ let state = {
   isGenerating: false,
   chats: JSON.parse(localStorage.getItem("chats")) || {},
   currentChat: null,
-  pendingFiles: [], // Changed from pendingFile to pendingFiles array
+  pendingFiles: [],
   userEmail: localStorage.getItem("userEmail") || localStorage.getItem("verifiedEmail"),
-
   username: localStorage.getItem("username") || null,
   isVerified: false,
   isResearching: false,
   isThinking: false,
   settings: {
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-3-sonnet-20240229",
     maxTokens: 4096,
     temperature: 0.7,
     typingIndicator: true,
     soundEnabled: true,
     soundVolume: 70,
     deepThinkingMode: false,
-    researchInternet: false
+    researchInternet: false,
+    autoOpenArtifacts: true,
+    accentColor: "#00d4ff",
+    backgroundTheme: "default",
+    fontSize: "medium"
   }
 };
 
-
+// Load saved settings
+const savedSettings = JSON.parse(localStorage.getItem("settings"));
+if (savedSettings) {
+  state.settings = { ...state.settings, ...savedSettings };
+}
 
 // Initialize current chat
 state.currentChat = Object.keys(state.chats)[0] || createChat();
 
 /* =======================
-   MINIMAL FORMATTING - FIXED WITH EARLY RETURNS
+   MINIMAL FORMATTING
 ======================= */
 function minimalFormatting(text) {
   if (!text || typeof text !== "string") {
     return text;
   }
 
-  // ✅ DO NOTHING if the model already formatted the response
   if (
     text.includes("\n") ||
     text.includes("•") ||
@@ -218,12 +222,10 @@ function minimalFormatting(text) {
     return text;
   }
 
-  // ✅ Light cleanup ONLY for unstructured, long text
   if (text.length < 200) {
     return text.trim();
   }
 
-  // Normalize excessive spaces ONLY
   let cleaned = text
     .replace(/\s{3,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -233,7 +235,7 @@ function minimalFormatting(text) {
 }
 
 /* =======================
-   DEDICATED CODE RENDER FUNCTION - ADDED
+   DEDICATED CODE RENDER FUNCTION
 ======================= */
 function renderCode(rawCode) {
   const container = elements.artifactContent;
@@ -346,7 +348,6 @@ function cancelResearch() {
    EMAIL VERIFICATION
 ======================= */
 function checkVerification() {
-  // If verification modal does not exist (main app), skip entirely
   if (!elements.verificationModal) {
     updateUserDisplay();
     return;
@@ -359,7 +360,6 @@ function checkVerification() {
     elements.verificationModal.classList.remove("hidden");
   }
 }
-
 
 function updateUserDisplay() {
   if (elements.displayUsername && state.username) {
@@ -378,21 +378,18 @@ async function sendVerificationCode() {
     return;
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  state.userEmail = email;
-  state.verificationCode = code;
-
   try {
     const res = await fetch("/api/send-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code })
+      body: JSON.stringify({ email })
     });
 
     const data = await res.json();
 
     if (data.success) {
       showVerificationSuccess("Verification code sent");
+      state.userEmail = email;
       elements.emailStep.classList.add("hidden");
       elements.codeStep.classList.remove("hidden");
       elements.displayEmail.textContent = email;
@@ -405,9 +402,6 @@ async function sendVerificationCode() {
   }
 }
 
-
-
-
 async function verifyCode() {
   const input = document.getElementById("verificationCode")?.value.trim();
 
@@ -416,26 +410,35 @@ async function verifyCode() {
     return;
   }
 
-  if (input !== state.verificationCode) {
-    showVerificationError("Invalid verification code");
-    return;
+  try {
+    const res = await fetch("/api/verify-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: state.userEmail, code: input })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      state.isVerified = true;
+      localStorage.setItem("verified", "true");
+      localStorage.setItem("verifiedEmail", state.userEmail);
+
+      showVerificationSuccess("Email verified successfully");
+
+      setTimeout(() => {
+        elements.verificationModal.classList.add("hidden");
+        updateUserDisplay();
+        showNotification("Email verified!");
+        playSound("success");
+      }, 800);
+    } else {
+      showVerificationError("Invalid verification code");
+    }
+  } catch (err) {
+    showVerificationError("Network error. Please try again.");
   }
-
-  // ✅ SUCCESS
-  state.isVerified = true;
-  localStorage.setItem("verified", "true");
-  localStorage.setItem("verifiedEmail", state.userEmail);
-
-  showVerificationSuccess("Email verified successfully");
-
-  setTimeout(() => {
-    elements.verificationModal.classList.add("hidden");
-    updateUserDisplay();
-    showNotification("Email verified!");
-    playSound("success");
-  }, 800);
 }
-
 
 function completeSetup() {
   const username = elements.usernameInput.value.trim();
@@ -447,7 +450,6 @@ function completeSetup() {
   
   state.username = username;
   localStorage.setItem("username", username);
-  localStorage.setItem("verifiedEmail", state.userEmail);
   state.isVerified = true;
   
   showVerificationSuccess("Setup complete! Welcome, " + username);
@@ -464,8 +466,6 @@ function resendCode() {
   elements.codeStep.classList.add("hidden");
   elements.emailStep.classList.remove("hidden");
   elements.verificationCode.value = "";
-  elements.sendCodeBtn.disabled = false;
-  elements.sendCodeBtn.textContent = "📧 Send Verification Code";
   showVerificationSuccess("You can request a new code");
 }
 
@@ -474,8 +474,6 @@ function changeEmail() {
   elements.emailStep.classList.remove("hidden");
   elements.verificationEmail.value = "";
   elements.verificationCode.value = "";
-  elements.sendCodeBtn.disabled = false;
-  elements.sendCodeBtn.textContent = "📧 Send Verification Code";
   state.userEmail = null;
 }
 
@@ -483,24 +481,12 @@ function logout() {
   if (confirm("Are you sure you want to logout? You'll need to verify your email again.")) {
     localStorage.removeItem("verifiedEmail");
     localStorage.removeItem("username");
+    localStorage.removeItem("loggedIn");
     state.userEmail = null;
     state.username = null;
     state.isVerified = false;
     
-    elements.emailStep.classList.remove("hidden");
-    elements.codeStep.classList.add("hidden");
-    elements.usernameStep.classList.add("hidden");
-    elements.verificationEmail.value = "";
-    elements.verificationCode.value = "";
-    elements.usernameInput.value = "";
-    elements.sendCodeBtn.disabled = false;
-    elements.sendCodeBtn.textContent = "📧 Send Verification Code";
-    elements.verifyCodeBtn.disabled = false;
-    elements.verifyCodeBtn.textContent = "✅ Verify Code";
-    
-    elements.verificationModal.classList.remove("hidden");
-    showNotification("Logged out successfully");
-    playSound('success');
+    window.location.href = "/signin";
   }
 }
 
@@ -528,12 +514,8 @@ const backgroundThemes = {
   "default": "linear-gradient(135deg, #0a0e27 0%, #1a0b2e 50%, #16213e 100%)",
   "quist-blue": "linear-gradient(135deg, #0066ff 0%, #00d4ff 50%, #0a2540 100%)",
   "cosmic-purple": "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #1a1a2e 100%)",
-  "ocean-blue": "linear-gradient(135deg, #2E3192 0%, #1BFFFF 50%, #0a2540 100%)",
-  "sunset-orange": "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 25%, #c44569 50%, #6c5ce7 75%, #1a1a2e 100%)",
-  "forest-green": "linear-gradient(135deg, #56ab2f 0%, #a8e063 25%, #134e5e 75%, #0a1f2e 100%)",
-  "midnight-blue": "linear-gradient(135deg, #1e3c72 0%, #2a5298 25%, #1a1f3c 75%, #0a0e1a 100%)",
-  "dark-void": "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #000000 100%)",
-  "cyberpunk": "linear-gradient(135deg, #ff006e 0%, #8338ec 25%, #3a86ff 50%, #06ffa5 75%, #1a1a2e 100%)"
+  "cyberpunk": "linear-gradient(135deg, #ff006e 0%, #8338ec 25%, #3a86ff 50%, #06ffa5 75%, #1a1a2e 100%)",
+  "dark-void": "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #000000 100%)"
 };
 
 /* =======================
@@ -545,18 +527,11 @@ function saveToLocalStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-
-
 function saveChats() {
   saveToLocalStorage("chats", state.chats);
   renderChatList();
   updateStats();
 }
-
-/* =======================
-   IMPROVED SLIDER FUNCTIONS
-======================= */
-
 
 /* =======================
    CHAT MANAGEMENT
@@ -830,7 +805,7 @@ function renderMessage({ role, content, time }) {
 }
 
 /* =======================
-   MESSAGE HANDLING - FIXED CODE RENDERING
+   MESSAGE HANDLING
 ======================= */
 function addMessage(message) {
   renderMessage(message);
@@ -912,13 +887,6 @@ function runArtifactCode() {
   playSound('success');
 }
 
-function extractCodeBlocks(text) {
-  const matches = text.match(/```[\s\S]*?```/g);
-  return matches ? matches.join("\n\n") : null;
-}
-
-const systemPromptAddition = "";
-
 /* =======================
    FILE PREVIEW MANAGEMENT
 ======================= */
@@ -941,6 +909,7 @@ function removeFileFromPreview(index) {
   renderFilePreviews();
   showFilePreviewArea();
 }
+
 function clearAllFiles(silent = false) {
   state.pendingFiles = [];
   renderFilePreviews();
@@ -952,7 +921,6 @@ function clearAllFiles(silent = false) {
   }
 }
 
-
 function renderFilePreviews() {
   elements.filePreviews.innerHTML = "";
   
@@ -960,7 +928,6 @@ function renderFilePreviews() {
     const previewCard = document.createElement("div");
     previewCard.className = "file-preview-card";
     
-    // Get file icon based on type
     const fileIcon = getFileIcon(fileData.type, fileData.name);
     
     previewCard.innerHTML = `
@@ -974,7 +941,6 @@ function renderFilePreviews() {
       <button class="remove-file-btn" data-index="${index}" title="Remove file">✕</button>
     `;
     
-    // Add click handler for image preview
     if (fileData.isImage && fileData.data) {
       previewCard.classList.add("image-preview");
       previewCard.onclick = (e) => {
@@ -987,7 +953,6 @@ function renderFilePreviews() {
     elements.filePreviews.appendChild(previewCard);
   });
   
-  // Add event listeners to remove buttons
   document.querySelectorAll('.remove-file-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -1032,7 +997,6 @@ function showImagePreview(imageSrc, fileName) {
   
   document.body.appendChild(modal);
   
-  // Add close functionality
   modal.querySelector('.close-preview-btn').onclick = () => {
     modal.remove();
   };
@@ -1044,46 +1008,8 @@ function showImagePreview(imageSrc, fileName) {
   };
 }
 
-
-async function typeAssistantMessage(text, speed = 20) {
-  const messagesContainer = elements.chat;
-
-  // Create empty assistant bubble
-  const messageDiv = document.createElement("div");
-  messageDiv.className = "message assistant";
-
-  const messageContent = document.createElement("div");
-  messageContent.className = "message-content";
-  messageContent.textContent = "";
-
-  messageDiv.appendChild(messageContent);
-  messagesContainer.appendChild(messageDiv);
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-  let index = 0;
-
-  while (index < text.length && state.isGenerating) {
-    messageContent.textContent += text[index];
-    index++;
-
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-    await new Promise(resolve => setTimeout(resolve, speed));
-  }
-
-  // Save final message to chat history
-  addMessage({
-    role: "assistant",
-    content: messageContent.textContent,
-    time: now()
-  });
-
-  // Remove the temporary typing bubble
-  messageDiv.remove();
-}
-
 /* =======================
-   SEND MESSAGE - UPDATED WITH FILE PREVIEWS
+   SEND MESSAGE
 ======================= */
 async function sendMessage() {
   if (state.isGenerating) return;
@@ -1091,7 +1017,6 @@ async function sendMessage() {
   const inputEl = elements.input;
   const text = inputEl.value.trim();
   
-  // Check if there's text or files to send
   if (!text && state.pendingFiles.length === 0) return;
 
   inputEl.value = "";
@@ -1100,15 +1025,14 @@ async function sendMessage() {
     state.currentChat = createChat();
   }
 
-  // Add user message if there's text
   if (text) {
-await typeAssistantMessage(
-  aiContent,
-  state.settings.typingSpeed || 20
-);
-  };
+    addMessage({
+      role: "user",
+      content: text,
+      time: now()
+    });
+  }
 
-  // Add file previews to chat if there are files
   if (state.pendingFiles.length > 0) {
     const filePreviewHTML = state.pendingFiles.map(fileData => {
       if (fileData.isImage && fileData.data) {
@@ -1119,7 +1043,6 @@ await typeAssistantMessage(
           </div>
         `;
       } else if (fileData.content) {
-        // Text file preview
         const truncatedContent = fileData.content.length > 500 
           ? fileData.content.substring(0, 500) + '...' 
           : fileData.content;
@@ -1150,7 +1073,6 @@ await typeAssistantMessage(
           </div>
         `;
       } else {
-        // Binary file preview
         return `
           <div class="file-upload-preview">
             <div style="
@@ -1182,7 +1104,6 @@ await typeAssistantMessage(
 
   updateWelcomeVisibility();
 
-  // UI STATE
   if (state.settings.typingIndicator) {
     elements.typing.style.opacity = 1;
   }
@@ -1194,50 +1115,39 @@ await typeAssistantMessage(
     showThinkingModal();
   }
 
-  if (state.settings.researchInternet && text.toLowerCase().includes("search")) {
+  if (state.settings.researchInternet && text && text.toLowerCase().includes("search")) {
     showResearchModal();
   }
 
-  // BUILD FULL PROMPT WITH FILE CONTEXT
-const messagesToSend = state.chats[state.currentChat].messages
-  .slice(-15)
-  .map(m => ({
-    role: m.role,
-    content: typeof m.content === "string"
-      ? m.content.replace(/<[^>]*>/g, "")
-      : String(m.content)
-  }));
-
-
-
   try {
+    const messagesToSend = state.chats[state.currentChat].messages
+      .slice(-15)
+      .map(m => ({
+        role: m.role,
+        content: typeof m.content === "string"
+          ? m.content.replace(/<[^>]*>/g, "")
+          : String(m.content)
+      }));
+
     const response = await fetch(BACKEND_URL, {
-  method: "POST", // ← REQUIRED
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-  messages: messagesToSend,
-  model: state.settings.model,
-  max_tokens: state.settings.maxTokens,
-  temperature: state.settings.temperature
-})
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messages: messagesToSend,
+        model: state.settings.model,
+        max_tokens: state.settings.maxTokens,
+        temperature: state.settings.temperature
+      })
+    });
 
-});
+    if (!response.ok) {
+      throw new Error(`Server error ${response.status}`);
+    }
 
-
-
-if (!response.ok) {
-  throw new Error(`Server error ${response.status}`);
-}
-
-const data = await response.json();
-
-// SIMPLIFY: Just get the reply from data.reply
-let aiContent = data.reply || "I apologize, but I couldn't generate a response.";
-
-
-
+    const data = await response.json();
+    let aiContent = data.reply || "I apologize, but I couldn't generate a response.";
 
     const detected = detectCode(aiContent);
 
@@ -1251,7 +1161,10 @@ let aiContent = data.reply || "I apologize, but I couldn't generate a response."
 
       state.chats[state.currentChat].artifacts.push(artifact);
       aiContent = detected.fullText || "";
-      displayArtifact(artifact);
+      
+      if (state.settings.autoOpenArtifacts) {
+        displayArtifact(artifact);
+      }
     } else {
       aiContent = minimalFormatting(aiContent);
     }
@@ -1288,7 +1201,6 @@ let aiContent = data.reply || "I apologize, but I couldn't generate a response."
     hideThinkingModal();
     hideResearchModal();
 
-    // Clear pending files after sending
     clearAllFiles(true);
 
     saveChats();
@@ -1297,7 +1209,7 @@ let aiContent = data.reply || "I apologize, but I couldn't generate a response."
 }
 
 /* =======================
-   VOICE RECORDING - IMPROVED ERROR HANDLING
+   VOICE RECORDING
 ======================= */
 let mediaRecorder = null;
 let audioChunks = [];
@@ -1398,11 +1310,6 @@ async function startVoiceRecording() {
   }
 }
 
-async function getAIResponse(prompt) {
-  // TEMP placeholder — replace with real API call
-  return "This is a test response.";
-}
-
 function stopVoiceRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
@@ -1413,7 +1320,6 @@ function stopVoiceRecording() {
    WELCOME SCREEN FUNCTIONALITY
 ======================= */
 function setupWelcomeScreen() {
-  // Example query buttons
   document.querySelectorAll('.example-query').forEach(button => {
     button.addEventListener('click', () => {
       const text = button.querySelector('.query-text').textContent;
@@ -1422,7 +1328,6 @@ function setupWelcomeScreen() {
     });
   });
   
-  // Welcome screen send button
   if (elements.welcomeSendBtn) {
     elements.welcomeSendBtn.addEventListener('click', () => {
       const text = elements.welcomeInput.value.trim();
@@ -1432,7 +1337,6 @@ function setupWelcomeScreen() {
     });
   }
   
-  // Welcome screen input enter key
   if (elements.welcomeInput) {
     elements.welcomeInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -1445,7 +1349,6 @@ function setupWelcomeScreen() {
     });
   }
   
-  // Welcome screen voice button
   if (elements.welcomeVoiceBtn) {
     elements.welcomeVoiceBtn.addEventListener('click', () => {
       if (elements.welcomeInput) {
@@ -1456,7 +1359,6 @@ function setupWelcomeScreen() {
     });
   }
   
-  // Welcome screen attach icon
   document.querySelector('.attach-icon')?.addEventListener('click', () => {
     handleFileUpload();
   });
@@ -1464,21 +1366,19 @@ function setupWelcomeScreen() {
 
 function sendMessageFromWelcomeScreen(text) {
   elements.welcomeInput.value = "";
-
-  // Hand off to main sendMessage ONLY
   elements.input.value = text;
   updateWelcomeVisibility();
   sendMessage();
 }
 
 /* =======================
-   FILE UPLOAD - UPDATED FOR PREVIEW AREA
+   FILE UPLOAD
 ======================= */
 function handleFileUpload() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*,.pdf,.txt,.doc,.docx,.json,.js,.html,.css,.py,.java,.cpp,.c,.xml,.csv';
-  input.multiple = true; // Allow multiple files
+  input.multiple = true;
   
   input.onchange = async (e) => {
     const files = Array.from(e.target.files);
@@ -1575,54 +1475,318 @@ function escapeHtml(text) {
 /* =======================
    SETTINGS MANAGEMENT
 ======================= */
+function saveSettings() {
+  localStorage.setItem("settings", JSON.stringify(state.settings));
+  applySettings();
+}
+
 function applySettings() {
-  return; // TEMP hard stop to prevent slider crash
+  if (!state.settings) return;
+  
+  // Update UI elements to match state
+  if (elements.modelSelect) {
+    elements.modelSelect.value = state.settings.model;
+  }
+  
+  if (elements.temperature) {
+    elements.temperature.value = state.settings.temperature * 10;
+    if (elements.temperatureValue) {
+      elements.temperatureValue.textContent = state.settings.temperature;
+    }
+  }
+  
+  if (elements.maxTokens) {
+    elements.maxTokens.value = state.settings.maxTokens;
+    if (elements.maxTokensValue) {
+      elements.maxTokensValue.textContent = state.settings.maxTokens;
+    }
+  }
+  
+  if (elements.accentColor) {
+    elements.accentColor.value = state.settings.accentColor;
+  }
+  
+  if (elements.backgroundSelect) {
+    elements.backgroundSelect.value = state.settings.backgroundTheme;
+    applyBackgroundTheme(state.settings.backgroundTheme);
+  }
+  
+  if (elements.fontSize) {
+    elements.fontSize.value = state.settings.fontSize;
+    applyFontSize(state.settings.fontSize);
+  }
+  
+  if (elements.deepThinkingToggle) {
+    elements.deepThinkingToggle.checked = state.settings.deepThinkingMode;
+  }
+  
+  if (elements.researchInternetToggle) {
+    elements.researchInternetToggle.checked = state.settings.researchInternet;
+  }
+  
+  if (elements.typingIndicatorToggle) {
+    elements.typingIndicatorToggle.checked = state.settings.typingIndicator;
+  }
+  
+  if (elements.autoOpenArtifactsToggle) {
+    elements.autoOpenArtifactsToggle.checked = state.settings.autoOpenArtifacts;
+  }
+  
+  if (elements.soundToggle) {
+    elements.soundToggle.checked = state.settings.soundEnabled;
+  }
+  
+  if (elements.soundVolume) {
+    elements.soundVolume.value = state.settings.soundVolume;
+    if (elements.soundVolumeValue) {
+      elements.soundVolumeValue.textContent = state.settings.soundVolume + "%";
+    }
+  }
+  
+  // Apply accent color
+  if (state.settings.accentColor) {
+    document.documentElement.style.setProperty('--primary', state.settings.accentColor);
+  }
 }
-
-
-
-// =======================
-// SETTINGS BINDINGS
-// =======================
-function bindSetting(id, key, transform = v => v) {
-  const el = document.getElementById(id);
-  if (!el) return;
-
-  el.addEventListener("input", () => {
-    state.settings[key] = transform(el.value);
-    saveSettings();
-  });
-}
-
-
-
-// =======================
-// BIND SETTINGS TO UI
-// =======================
-bindSetting("temperature", "temperature", v => parseInt(v) / 10);
-bindSetting("maxTokens", "maxTokens", v => parseInt(v));
-bindSetting("contextWindow", "contextWindow");
-bindSetting("responseFormat", "responseFormat");
-
-
-
-
 
 function applyBackgroundTheme(theme) {
   const gradient = backgroundThemes[theme] || backgroundThemes["default"];
   document.body.style.background = gradient;
 }
 
-function applyDesignStyle(style) {
-  let radius = "16px";
-  if (style === "sharp") radius = "4px";
-  else if (style === "neumorphic") radius = "24px";
-  document.documentElement.style.setProperty("--radius", radius);
+function applyFontSize(size) {
+  document.body.classList.remove('font-small', 'font-medium', 'font-large');
+  document.body.classList.add(`font-${size}`);
 }
 
-/* =======================
-   SETTINGS EVENT LISTENERS
-======================= */
+function setupSettingsBindings() {
+  // Model selection
+  if (elements.modelSelect) {
+    elements.modelSelect.addEventListener('change', (e) => {
+      state.settings.model = e.target.value;
+      saveSettings();
+    });
+  }
+  
+  // Temperature slider
+  if (elements.temperature) {
+    elements.temperature.addEventListener('input', (e) => {
+      state.settings.temperature = e.target.value / 10;
+      if (elements.temperatureValue) {
+        elements.temperatureValue.textContent = state.settings.temperature;
+      }
+      saveSettings();
+    });
+  }
+  
+  // Max tokens slider
+  if (elements.maxTokens) {
+    elements.maxTokens.addEventListener('input', (e) => {
+      state.settings.maxTokens = parseInt(e.target.value);
+      if (elements.maxTokensValue) {
+        elements.maxTokensValue.textContent = state.settings.maxTokens;
+      }
+      saveSettings();
+    });
+  }
+  
+  // Accent color
+  if (elements.accentColor) {
+    elements.accentColor.addEventListener('change', (e) => {
+      state.settings.accentColor = e.target.value;
+      saveSettings();
+    });
+  }
+  
+  // Background theme
+  if (elements.backgroundSelect) {
+    elements.backgroundSelect.addEventListener('change', (e) => {
+      state.settings.backgroundTheme = e.target.value;
+      saveSettings();
+    });
+  }
+  
+  // Font size
+  if (elements.fontSize) {
+    elements.fontSize.addEventListener('change', (e) => {
+      state.settings.fontSize = e.target.value;
+      saveSettings();
+    });
+  }
+  
+  // Toggle switches
+  if (elements.deepThinkingToggle) {
+    elements.deepThinkingToggle.addEventListener('change', (e) => {
+      state.settings.deepThinkingMode = e.target.checked;
+      saveSettings();
+    });
+  }
+  
+  if (elements.researchInternetToggle) {
+    elements.researchInternetToggle.addEventListener('change', (e) => {
+      state.settings.researchInternet = e.target.checked;
+      saveSettings();
+    });
+  }
+  
+  if (elements.typingIndicatorToggle) {
+    elements.typingIndicatorToggle.addEventListener('change', (e) => {
+      state.settings.typingIndicator = e.target.checked;
+      saveSettings();
+    });
+  }
+  
+  if (elements.autoOpenArtifactsToggle) {
+    elements.autoOpenArtifactsToggle.addEventListener('change', (e) => {
+      state.settings.autoOpenArtifacts = e.target.checked;
+      saveSettings();
+    });
+  }
+  
+  if (elements.soundToggle) {
+    elements.soundToggle.addEventListener('change', (e) => {
+      state.settings.soundEnabled = e.target.checked;
+      saveSettings();
+    });
+  }
+  
+  // Sound volume
+  if (elements.soundVolume) {
+    elements.soundVolume.addEventListener('input', (e) => {
+      state.settings.soundVolume = parseInt(e.target.value);
+      if (elements.soundVolumeValue) {
+        elements.soundVolumeValue.textContent = state.settings.soundVolume + "%";
+      }
+      saveSettings();
+    });
+  }
+  
+  // Sound toggles
+  if (elements.soundMessageSentToggle) {
+    elements.soundMessageSentToggle.addEventListener('change', () => {
+      saveSettings();
+    });
+  }
+  
+  if (elements.soundMessageReceivedToggle) {
+    elements.soundMessageReceivedToggle.addEventListener('change', () => {
+      saveSettings();
+    });
+  }
+  
+  if (elements.soundSuccessToggle) {
+    elements.soundSuccessToggle.addEventListener('change', () => {
+      saveSettings();
+    });
+  }
+  
+  // Data actions
+  if (elements.exportChat) {
+    elements.exportChat.addEventListener('click', () => {
+      if (state.currentChat && state.chats[state.currentChat]) {
+        const chatData = state.chats[state.currentChat];
+        const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat-${state.currentChat}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showNotification("Chat exported!");
+        playSound('success');
+      }
+    });
+  }
+  
+  if (elements.backupChats) {
+    elements.backupChats.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state.chats, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chats-backup-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showNotification("All chats backed up!");
+      playSound('success');
+    });
+  }
+  
+  if (elements.exportSettings) {
+    elements.exportSettings.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state.settings, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `settings-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showNotification("Settings exported!");
+      playSound('success');
+    });
+  }
+  
+  if (elements.resetSettings) {
+    elements.resetSettings.addEventListener('click', () => {
+      if (confirm("Reset all settings to defaults?")) {
+        state.settings = {
+          model: "claude-3-sonnet-20240229",
+          maxTokens: 4096,
+          temperature: 0.7,
+          typingIndicator: true,
+          soundEnabled: true,
+          soundVolume: 70,
+          deepThinkingMode: false,
+          researchInternet: false,
+          autoOpenArtifacts: true,
+          accentColor: "#00d4ff",
+          backgroundTheme: "default",
+          fontSize: "medium"
+        };
+        saveSettings();
+        applySettings();
+        showNotification("Settings reset to defaults!");
+        playSound('success');
+      }
+    });
+  }
+  
+  if (elements.clearCache) {
+    elements.clearCache.addEventListener('click', () => {
+      if (confirm("Clear all cached data? This won't delete your chats.")) {
+        // Clear non-chat localStorage items
+        const chats = localStorage.getItem("chats");
+        const settings = localStorage.getItem("settings");
+        localStorage.clear();
+        if (chats) localStorage.setItem("chats", chats);
+        if (settings) localStorage.setItem("settings", settings);
+        showNotification("Cache cleared!");
+        playSound('success');
+      }
+    });
+  }
+  
+  // Update storage usage display
+  updateStorageUsage();
+}
+
+function updateStorageUsage() {
+  if (elements.storageUsage) {
+    const chatsSize = JSON.stringify(state.chats).length;
+    elements.storageUsage.textContent = formatFileSize(chatsSize);
+  }
+  
+  if (elements.localStorageUsage) {
+    let total = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = localStorage.getItem(key);
+      total += key.length + value.length;
+    }
+    elements.localStorageUsage.textContent = formatFileSize(total);
+  }
+}
+
 /* =======================
    SETTINGS TAB SWITCHING
 ======================= */
@@ -1630,18 +1794,13 @@ function setupSettingsTabs() {
   const tabs = document.querySelectorAll('.settings-tab');
   const panels = document.querySelectorAll('.settings-panel[data-panel]');
 
-
-  if (!tabs.length || !panels.length) return;
-
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const target = tab.dataset.tab;
 
-      // Update tab active state
       tabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
 
-      // Update panel visibility
       panels.forEach(panel => {
         panel.classList.toggle(
           'active',
@@ -1653,100 +1812,10 @@ function setupSettingsTabs() {
 }
 
 /* =======================
-   PARTICLE EFFECTS
-======================= */
-function addParticleEffects() {
-  const container = document.querySelector('.chat-area');
-  const canvas = document.createElement('canvas');
-  canvas.id = 'particle-canvas';
-  canvas.style.position = 'fixed';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '-1';
-  container.appendChild(canvas);
-  
-  const ctx = canvas.getContext('2d');
-  const particles = [];
-  
-  function resizeCanvas() {
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-  }
-  
-  class Particle {
-    constructor() {
-      this.x = Math.random() * canvas.width;
-      this.y = Math.random() * canvas.height;
-      this.size = Math.random() * 2 + 1;
-      this.speedX = Math.random() * 1 - 0.5;
-      this.speedY = Math.random() * 1 - 0.5;
-      this.color = state.settings.accentColor;
-      this.alpha = Math.random() * 0.5 + 0.2;
-    }
-    
-    update() {
-      this.x += this.speedX;
-      this.y += this.speedY;
-      
-      if (this.x > canvas.width) this.x = 0;
-      else if (this.x < 0) this.x = canvas.width;
-      
-      if (this.y > canvas.height) this.y = 0;
-      else if (this.y < 0) this.y = canvas.height;
-    }
-    
-    draw() {
-      ctx.fillStyle = this.color;
-      ctx.globalAlpha = this.alpha;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  
-  function initParticles() {
-    for (let i = 0; i < 50; i++) {
-      particles.push(new Particle());
-    }
-  }
-  
-  function animateParticles() {
-    if (!state.settings.particleEffects) {
-      canvas.remove();
-      return;
-    }
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    particles.forEach(particle => {
-      particle.update();
-      particle.draw();
-    });
-    
-    requestAnimationFrame(animateParticles);
-  }
-  
-  resizeCanvas();
-  initParticles();
-  animateParticles();
-  
-  window.addEventListener('resize', resizeCanvas);
-}
-
-function removeParticleEffects() {
-  const canvas = document.getElementById('particle-canvas');
-  if (canvas) {
-    canvas.remove();
-  }
-}
-
-/* =======================
    EVENT LISTENERS
 ======================= */
 function setupEventListeners() {
+  // Verification buttons
   if (elements.sendCodeBtn) elements.sendCodeBtn.onclick = sendVerificationCode;
   if (elements.verifyCodeBtn) elements.verifyCodeBtn.onclick = verifyCode;
   if (elements.resendCodeBtn) elements.resendCodeBtn.onclick = resendCode;
@@ -1754,9 +1823,13 @@ function setupEventListeners() {
   if (elements.completeSetupBtn) elements.completeSetupBtn.onclick = completeSetup;
   if (elements.logoutBtn) elements.logoutBtn.onclick = logout;
   
+  // Research cancel
   if (elements.cancelResearch) elements.cancelResearch.onclick = cancelResearch;
+  
+  // Artifact actions
   if (elements.runArtifact) elements.runArtifact.onclick = runArtifactCode;
   
+  // Verification input handlers
   if (elements.verificationEmail) {
     elements.verificationEmail.addEventListener("keydown", (e) => {
       if (e.key === "Enter") sendVerificationCode();
@@ -1779,6 +1852,7 @@ function setupEventListeners() {
     });
   }
   
+  // Chat input and send
   elements.sendBtn.onclick = () => {
     if (state.isGenerating) {
       state.isGenerating = false;
@@ -1798,6 +1872,7 @@ function setupEventListeners() {
     }
   });
   
+  // Settings modal
   elements.settingsBtn.onclick = () => {
     elements.settingsPanel.classList.remove("hidden");
     createModalOverlay();
@@ -1808,6 +1883,7 @@ function setupEventListeners() {
     removeModalOverlay();
   };
   
+  // Artifact panel
   elements.closeArtifact.onclick = () => {
     elements.artifactPanel.classList.remove("visible");
     state.currentArtifact = null;
@@ -1840,6 +1916,7 @@ function setupEventListeners() {
     }
   };
   
+  // New chat button
   const newChatBtn = document.getElementById("newChat");
   if (newChatBtn) {
     newChatBtn.onclick = () => {
@@ -1850,6 +1927,7 @@ function setupEventListeners() {
     };
   }
   
+  // Clear chats button
   const clearBtn = document.getElementById("clearChats");
   if (clearBtn) {
     clearBtn.onclick = () => {
@@ -1864,20 +1942,21 @@ function setupEventListeners() {
     };
   }
   
-  const voiceBtn = document.getElementById("voiceInputBtn");
-  if (voiceBtn) {
-    voiceBtn.onclick = () => {
+  // Voice input button
+  if (elements.voiceInputBtn) {
+    elements.voiceInputBtn.onclick = () => {
       startVoiceRecording();
     };
   }
   
-  const fileBtn = document.getElementById("fileUploadBtn");
-  if (fileBtn) {
-    fileBtn.onclick = () => {
+  // File upload button
+  if (elements.fileUploadBtn) {
+    elements.fileUploadBtn.onclick = () => {
       handleFileUpload();
     };
   }
   
+  // Quick response templates
   document.querySelectorAll('.response-template').forEach(btn => {
     btn.onclick = () => {
       elements.input.value = btn.textContent;
@@ -1886,6 +1965,14 @@ function setupEventListeners() {
     };
   });
   
+  // Clear all files button
+  if (elements.clearAllFiles) {
+    elements.clearAllFiles.onclick = () => {
+      clearAllFiles();
+    };
+  }
+  
+  // Quick responses show/hide
   elements.input.addEventListener('focus', () => {
     if (elements.quickResponses) {
       elements.quickResponses.classList.remove('hidden');
@@ -1901,27 +1988,6 @@ function setupEventListeners() {
   });
 }
 
-function updateWelcomeVisibility() {
-  const chat = elements.chat;
-  const welcome = elements.welcomeScreen;
-
-  const hasMessages =
-    state.currentChat &&
-    state.chats[state.currentChat] &&
-    state.chats[state.currentChat].messages.length > 0;
-
-  if (hasMessages) {
-    welcome.style.display = "none";
-    chat.style.display = "flex";
-  } else {
-    welcome.style.display = "flex";
-    chat.style.display = "none";
-  }
-}
-
-/* =======================
-   MODAL HELPERS
-======================= */
 function createModalOverlay() {
   let overlay = document.querySelector('.modal-overlay');
   if (!overlay) {
@@ -1940,9 +2006,6 @@ function removeModalOverlay() {
   const overlay = document.querySelector('.modal-overlay');
   if (overlay) overlay.classList.remove('active');
 }
-
-
-
 
 function showNotification(message) {
   const notification = document.createElement('div');
@@ -1975,28 +2038,40 @@ function showNotification(message) {
    INITIALIZATION
 ======================= */
 function init() {
- 
-  //applySettings();
-  setupEventListeners();
-  setupWelcomeScreen(); 
-  loadChat(state.currentChat);
- 
-  updateStats();
-  updateUserDisplay();
-  applySettings();
-  setupSettingsTabs();
-
-
-  
-  if (state.settings.particleEffects) {
-    addParticleEffects();
+  // Load saved state
+  if (localStorage.getItem("verifiedEmail")) {
+    state.userEmail = localStorage.getItem("verifiedEmail");
+    state.isVerified = true;
   }
   
-  console.log("Quist AI app initialized with modern welcome screen and file previews!");
+  if (localStorage.getItem("username")) {
+    state.username = localStorage.getItem("username");
+  }
+  
+  // Apply settings
+  applySettings();
+  
+  // Setup event listeners
+  setupEventListeners();
+  setupWelcomeScreen();
+  setupSettingsBindings();
+  setupSettingsTabs();
+  
+  // Load current chat
+  loadChat(state.currentChat);
+  
+  // Update stats and user display
+  updateStats();
+  updateUserDisplay();
+  updateStorageUsage();
+  
+  // Check verification
+  checkVerification();
+  
+  console.log("Quist AI app initialized!");
 }
 
 // Start the app
 document.addEventListener("DOMContentLoaded", () => {
   init();
 });
-
