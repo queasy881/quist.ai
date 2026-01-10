@@ -544,13 +544,22 @@
           }
 
           // Success - show verification modal
-          document.getElementById('displayEmail').textContent = email;
-          document.getElementById('verificationModal').classList.remove('hidden');
-          
-          // Store pending verification email
-          localStorage.setItem("pendingVerificationEmail", email);
-          
-          resetButton();
+          // Success - show verification modal
+document.getElementById('displayEmail').textContent = email;
+document.getElementById('verificationModal').classList.remove('hidden');
+
+// Store pending verification email
+localStorage.setItem("pendingVerificationEmail", email);
+
+// 🔴 STEP 3 — SEND VERIFICATION EMAIL
+await fetch("/api/send-verification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email })
+});
+
+resetButton();
+
 
         } catch (err) {
           showError(err.message);
@@ -618,27 +627,28 @@
     };
 
     document.getElementById('resendCodeBtn').onclick = async function() {
-      const email = localStorage.getItem('pendingVerificationEmail');
-      if (email) {
-        try {
-          const res = await fetch("/api/resend-verification", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
-          });
+  const email = localStorage.getItem('pendingVerificationEmail');
+  if (!email) return;
 
-          const data = await res.json();
+  try {
+    const res = await fetch("/api/send-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
 
-          if (data.success) {
-            showNotification('New verification code sent!');
-          } else {
-            showNotification('Failed to resend code. Please try again.');
-          }
-        } catch (err) {
-          showNotification('Network error. Please try again.');
-        }
-      }
-    };
+    const data = await res.json();
+
+    if (data.success) {
+      showNotification('New verification code sent!');
+    } else {
+      showNotification('Failed to resend code. Please try again.');
+    }
+  } catch (err) {
+    showNotification('Network error. Please try again.');
+  }
+};
+
 
     document.getElementById('changeEmailLink').onclick = function(e) {
       e.preventDefault();
