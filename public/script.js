@@ -1044,6 +1044,44 @@ function showImagePreview(imageSrc, fileName) {
   };
 }
 
+
+async function typeAssistantMessage(text, speed = 20) {
+  const messagesContainer = elements.chat;
+
+  // Create empty assistant bubble
+  const messageDiv = document.createElement("div");
+  messageDiv.className = "message assistant";
+
+  const messageContent = document.createElement("div");
+  messageContent.className = "message-content";
+  messageContent.textContent = "";
+
+  messageDiv.appendChild(messageContent);
+  messagesContainer.appendChild(messageDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  let index = 0;
+
+  while (index < text.length && state.isGenerating) {
+    messageContent.textContent += text[index];
+    index++;
+
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    await new Promise(resolve => setTimeout(resolve, speed));
+  }
+
+  // Save final message to chat history
+  addMessage({
+    role: "assistant",
+    content: messageContent.textContent,
+    time: now()
+  });
+
+  // Remove the temporary typing bubble
+  messageDiv.remove();
+}
+
 /* =======================
    SEND MESSAGE - UPDATED WITH FILE PREVIEWS
 ======================= */
@@ -1064,12 +1102,11 @@ async function sendMessage() {
 
   // Add user message if there's text
   if (text) {
-    addMessage({
-      role: "user",
-      content: text,
-      time: now()
-    });
-  }
+await typeAssistantMessage(
+  aiContent,
+  state.settings.typingSpeed || 20
+);
+  };
 
   // Add file previews to chat if there are files
   if (state.pendingFiles.length > 0) {

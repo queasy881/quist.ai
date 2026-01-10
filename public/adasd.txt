@@ -1,0 +1,581 @@
+You are working on a Roblox Lua client-side exploit hub, loaded via:
+
+loadstring(game:HttpGet(...))()
+
+
+The project is modular with folders:
+
+movement/
+esp/
+combat/
+ui/
+utils/
+
+
+A central `menu.lua` file builds all UI (tabs, toggles, sliders, buttons).
+
+Hard constraints (non-negotiable):
+
+Must remain 100% loadstring-compatible
+
+❌ No require(script.Parent)
+
+Every file must return a function or table
+
+Do NOT rewrite the entire project
+
+Keep existing UI structure intact
+
+Focus on stability, performance, and stealth
+
+🔧 TASKS
+1. FIX ESP (BROKEN)
+
+Ensure all ESP features work for Players AND NPC humanoids.
+
+Required ESP features:
+
+Name ESP
+
+Box ESP
+
+Health ESP
+
+Distance ESP
+
+Tracers
+
+Off-screen arrows
+
+Implementation rules:
+
+Build a central entity cache:
+
+Track Character, Humanoid, RootPart, Health, MaxHealth
+
+Mark entities as Player or NPC
+
+Filter targets via:
+
+Team check
+
+Friend check
+
+Whitelist check
+
+Clean up ESP objects when:
+
+Character dies
+
+NPC despawns
+
+Player leaves
+
+Use ONE RenderStepped loop
+
+❌ Do NOT recreate Drawing objects every frame
+
+Reuse drawings and update properties only
+
+2. MAKE MOVEMENT FEATURES LESS DETECTABLE
+
+Improve stealth for:
+
+Fly
+
+Noclip
+
+WalkSpeed
+
+BunnyHop
+
+Dash
+
+Air Control
+
+Rules:
+
+❌ No BodyVelocity / BodyGyro spam
+
+Prefer:
+
+Humanoid:Move()
+
+Small impulses
+
+Camera-relative vectors
+
+Smooth changes using:
+
+Lerp
+
+Easing
+
+Add Legit Mode:
+
+Slower acceleration
+
+Slight randomness
+
+No sudden velocity jumps
+
+3. REMOVE AUTOFARM COMPLETELY
+
+Delete all AutoFarm logic
+
+Remove all AutoFarm UI elements
+
+Remove loops and references
+
+Verify nothing references AutoFarm afterward
+
+4. KILLAURA (MUST MATCH SPEC BELOW)
+
+DO NOT implement a basic loop-based KillAura.
+
+Instead, implement KillAura using server-validated combat manipulation, following these exact rules:
+
+4.1 Target System
+
+Build a reusable entity selector:
+
+GetBestTarget({
+  Range,
+  Players = true/false,
+  NPCs = true/false,
+  WallCheck = true/false,
+  Sort = "Distance" | "Health" | "Angle" | "Threat"
+})
+
+
+Sort targets by:
+
+Distance
+
+Health
+
+Facing angle
+
+Weapon strength (if available)
+
+4.2 Attack Execution (CRITICAL)
+
+Do NOT fake damage.
+Do NOT teleport.
+Do NOT spam remotes.
+
+Instead:
+
+Hook the legitimate sword attack remote
+
+Intercept the attack validation table before it is sent
+
+Modify only the reported self-position used for validation:
+
+reportedSelfPosition += LookVector * max((distance - legitRange), 0)
+
+
+Where:
+
+legitRange ≈ 14.4 studs
+
+No CFrame changes
+
+No snapping
+
+No visible movement
+
+This makes the server believe the target is in range.
+
+4.3 Timing & Cooldowns
+
+Respect attack cooldowns
+
+Do NOT attack every frame
+
+Add:
+
+CPS / Delay slider
+
+Optional Legit Mode:
+
+Slower attacks
+
+Human-like randomness
+
+4.4 KillAura Controls
+
+UI must include:
+
+Toggle: KillAura
+
+Slider: Range
+
+Dropdown: Targets (Players / NPCs / Both)
+
+Slider: CPS or Delay
+
+Toggle: Legit Mode
+
+5. SWORD REACH (SILENT)
+
+Reach must:
+
+Work only for sword / melee tools
+
+Extend hit detection without teleporting
+
+Use the SAME validation-position offset technique as KillAura
+
+NOT run every frame
+
+Be applied only when an attack is sent
+
+Legit Mode:
+
+Small extension (+1–2 studs)
+
+Smooth interpolation
+
+6. MOUSE UNLOCK WHEN MENU OPENS
+
+When menu opens:
+
+UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+UserInputService.MouseIconEnabled = true
+
+
+When menu closes:
+
+Restore previous mouse state
+
+7. FPS / PERFORMANCE FIXES (CRITICAL)
+
+Optimize everything:
+
+❌ No infinite loops per feature
+
+❌ No multiple RenderStepped connections
+
+Centralize update loops
+
+Cache:
+
+Players
+
+Characters
+
+Humanoids
+
+Tools
+
+Reuse Drawing / Instance objects
+
+Clean up connections on disable
+
+Prevent tween stacking
+
+Prevent memory leaks
+
+Goal:
+
+Stable FPS
+
+No stutter
+
+No memory growth
+
+
+
+Silent Aim must NOT rely on Mouse.Hit or Mouse.Target.
+
+Instead, Silent Aim MUST:
+
+Hook camera ray generation, specifically:
+
+Camera:ScreenPointToRay
+
+Camera:ViewportPointToRay
+
+When Silent Aim is enabled:
+
+Replace the ray direction so it points toward the selected target’s hitbox
+
+Do NOT modify camera CFrame
+
+Do NOT lock or move the camera
+
+The player must retain full mouse control at all times
+
+Required behavior:
+OriginalRay(origin, direction)
+→ ModifiedRay(origin, (TargetPosition - origin).Unit * originalLength)
+
+Additional rules:
+
+Apply hit-chance BEFORE modifying the ray
+
+Do NOT run every frame
+
+Only modify rays that originate from the local camera
+
+Cleanly restore original functions on disable
+
+If the game uses attack validation tables instead of raycasts, Silent Aim must modify the validation data (reported hit position / direction) instead of touching the camera.
+
+8. HITBOX-ONLY INVISIBILITY (NO TRANSPARENCY)
+
+Transparency is forbidden.
+
+Implement invisibility by physically separating the visual model from the hitbox:
+
+Rules:
+
+Move the character model far away (100–500 studs)
+
+Keep HumanoidRootPart at real position
+
+Camera, movement, and physics follow the hitbox
+
+Only a small placeholder / hitbox is visible locally
+
+Requirements:
+
+❌ No Transparency = 1
+
+❌ No LocalTransparencyModifier
+
+❌ No SetPrimaryPartCFrame spam
+
+Must restore cleanly on disable
+
+Must reapply on respawn
+
+UI:
+
+Toggle: Hitbox Invisibility
+
+Slider: Model Offset Distance
+
+Mode:
+
+Safe (≈100 studs)
+
+Extreme (≈300–500 studs)
+
+📤 OUTPUT REQUIREMENTS
+
+Provide:
+
+Explanation of what caused each bug
+
+Explanation of all FPS fixes
+
+Corrected Lua code per file
+
+Clear list of modified files
+
+Prioritize:
+
+Stability
+
+Performance
+
+Stealth
+
+Correctness
+
+
+9. CONFIG SYSTEM (REQUIRED, PRECISE)
+
+A centralized, persistent configuration system must be implemented and used by ALL modules (movement, esp, combat, ui, utils).
+
+9.1 Core Rules (Non-Negotiable)
+
+Must be 100% client-side
+
+Must be loadstring-compatible
+
+❌ No require(script.Parent)
+
+❌ No DataStoreService
+
+❌ No external HTTP saves
+
+Must not create FPS drops or background loops
+
+Config access must be O(1) (cached in memory)
+
+9.2 Storage Method
+
+Use HttpService JSON encoding + executor file APIs:
+
+writefile
+
+readfile
+
+isfile
+
+makefolder
+
+All config files must be stored under a single folder, for example:
+
+/hubname/configs/
+
+
+Each config is a .json file.
+
+9.3 Config Manager (utils/config.lua)
+
+Create one config manager module that:
+
+Loads configs on startup
+
+Saves configs on change (debounced)
+
+Exposes a simple API
+
+Required API surface:
+
+Config = {
+  Load(name),
+  Save(name),
+  Set(keyPath, value),
+  Get(keyPath, default),
+  Bind(optionObject, keyPath),
+  Reset(name),
+  List()
+}
+
+Key rules:
+
+keyPath uses dot-notation
+Example:
+
+"Combat.KillAura.Range"
+"ESP.Box.Enabled"
+"Movement.Fly.LegitMode"
+
+
+Missing keys must never error
+
+Defaults must auto-populate missing values
+
+Config must stay valid if new options are added later
+
+9.4 UI Binding (CRITICAL)
+
+All UI controls must bind directly to config values, not local variables.
+
+Example behavior:
+
+Slider moves → config updates
+
+Toggle changes → config updates
+
+Config loads → UI updates automatically
+
+Required behavior:
+
+UI state reflects config instantly
+
+No duplicate state storage
+
+No desync between UI and logic
+
+9.5 Performance & Safety
+
+❌ No saving every frame
+
+Use debounced saving (e.g. 0.5–1s after last change)
+
+Cache config table in memory
+
+Only serialize when saving
+
+Never read files inside RenderStepped / Heartbeat
+
+9.6 Config Scope Requirements
+
+Config must cover at least:
+
+ESP
+
+Enabled states
+
+Colors
+
+Thickness
+
+Max distance
+
+NPC / Player toggles
+
+Combat
+
+KillAura (range, CPS, target type, legit mode)
+
+Reach (range, legit mode)
+
+Silent Aim (FOV, hit chance, target part)
+
+Movement
+
+Fly speed
+
+Acceleration
+
+Legit Mode toggles
+
+Noclip state
+
+Misc
+
+UI open state (optional)
+
+Invisibility settings (offset distance, mode)
+
+9.7 Multi-Config Support
+
+The system must support multiple named configs:
+
+Create
+
+Load
+
+Save
+
+Delete
+
+Reset to defaults
+
+Switching configs must:
+
+Instantly apply settings
+
+Update UI
+
+Not require reload / re-execution
+
+9.8 Failure Handling
+
+If config file is missing → create it
+
+If config file is corrupted → reset safely
+
+Never crash or error due to config issues
+
+Always fall back to defaults
+
+9.9 Stealth Considerations
+
+No global spam
+
+No prints
+
+No error output
+
+Silent failure recovery only
+
+also rename the hub to Vertex hub
+
