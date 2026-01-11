@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Quist AI Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quist</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script>
   (function () {
     if (!localStorage.getItem("loggedIn")) {
@@ -18,162 +19,162 @@
 <body>
 
   <div class="top-links">
-    <a href="tos.html" class="tos-link">Terms of Service</a>
-    <a href="bug.html" class="bug-link">Submit a Bug</a>
+    <a href="tos.html" class="top-link">Terms</a>
+    <a href="bug.html" class="top-link">Report Issue</a>
   </div>
 
   <div class="container">
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
-      <h2>Chats</h2>
-
-      <button id="newChat">+ New Chat</button>
-      <button id="clearChats" class="danger">🧹 Clear All</button>
-
-      <div id="chatList"></div>
-      
-      <!-- Chat Stats -->
-      <div class="chat-stats">
-        <div class="stat">
-          <span class="stat-label">Total Chats:</span>
-          <span id="totalChats" class="stat-value">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Total Messages:</span>
-          <span id="totalMessages" class="stat-value">0</span>
-        </div>
+      <div class="sidebar-header">
+        <div class="logo-mark">Q</div>
+        <span class="logo-text">Quist</span>
       </div>
+
+      <div class="sidebar-actions">
+        <button id="newChat" class="btn-primary">New Chat</button>
+        <button id="clearChats" class="btn-secondary danger">Clear All</button>
+      </div>
+
+      <div id="chatList" class="chat-list"></div>
       
-      <!-- User Info Section -->
-      <div class="user-info">
-        <div class="user-avatar">👤</div>
-        <div class="user-details">
-          <div id="displayUsername" class="username">User</div>
-          <div id="displayUserEmail" class="user-email">email@example.com</div>
+      <div class="sidebar-footer">
+        <div class="chat-stats">
+          <div class="stat">
+            <span class="stat-label">Chats</span>
+            <span id="totalChats" class="stat-value">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Messages</span>
+            <span id="totalMessages" class="stat-value">0</span>
+          </div>
         </div>
-        <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">🚪</button>
+        
+        <div class="user-info">
+          <div class="user-avatar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="user-details">
+            <div id="displayUsername" class="username">User</div>
+            <div id="displayUserEmail" class="user-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="22474f434b4e62475a434f524e470c414d4f">[email&#160;protected]</a></div>
+          </div>
+          <button id="logoutBtn" class="logout-btn" title="Sign out" aria-label="Sign out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </aside>
 
     <!-- CHAT -->
     <main class="chat-area">
-      <!-- Floating Settings Button -->
-      <button id="settingsBtn" class="floating-settings-btn" title="Settings">⚙️</button>
+      <button id="settingsBtn" class="settings-trigger" title="Settings" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
       
       <header></header>
 
       <div class="main-content">
         <div class="chat-wrapper">
-          <!-- UPDATED MODERN WELCOME SCREEN -->
+          <!-- WELCOME SCREEN -->
           <div id="welcomeScreen" class="welcome">
             <div class="welcome-content">
               <div class="welcome-header">
-                <div class="welcome-logo">Q</div>
-                <div class="welcome-tagline">
-                  <span class="tagline-text">Intelligent Conversations</span>
-                  <span class="tagline-dot"></span>
-                  <span class="tagline-text">Powered by Claude</span>
+                <h1 class="welcome-title">How can I help?</h1>
+                <p class="welcome-subtitle">Ask anything or try one of these examples</p>
+              </div>
+
+              <div class="example-queries">
+                <button class="example-query">
+                  <span class="query-text">Explain quantum computing simply</span>
+                </button>
+                <button class="example-query">
+                  <span class="query-text">Analyze sales data for insights</span>
+                </button>
+                <button class="example-query">
+                  <span class="query-text">Write a Python sorting function</span>
+                </button>
+                <button class="example-query">
+                  <span class="query-text">Help design a website layout</span>
+                </button>
+              </div>
+
+              <div class="welcome-input-container">
+                <div class="input-wrapper">
+                  <button class="attach-btn" title="Attach files" id="welcomeAttachBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  </button>
+                  
+                  <input
+                    type="text"
+                    class="welcome-input"
+                    placeholder="Message Quist..."
+                    autocomplete="off"
+                    id="welcomeInput"
+                  />
+                  
+                  <div class="input-actions">
+                    <button class="voice-btn" title="Voice input" id="welcomeVoiceBtn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                      </svg>
+                    </button>
+                    
+                    <button class="send-btn" title="Send message" id="welcomeSendBtn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="input-hint">
+                  <span>Enter to send · Shift+Enter for new line</span>
                 </div>
               </div>
-              
-              <div class="welcome-main">
-                <h1 class="modern-headline">
-                  <span class="headline-gradient">What can I</span>
-                  <span class="headline-gradient">help you with?</span>
-                </h1>
-                
-                <div class="welcome-subtitle">
-                  <p>Ask anything, upload files, or try one of these examples:</p>
-                </div>
 
-                <div class="example-queries">
-                  <button class="example-query">
-                    <span class="query-icon">💡</span>
-                    <span class="query-text">"Explain quantum computing in simple terms"</span>
-                  </button>
-                  <button class="example-query">
-                    <span class="query-icon">📊</span>
-                    <span class="query-text">"Analyze this sales data and provide insights"</span>
-                  </button>
-                  <button class="example-query">
-                    <span class="query-icon">💻</span>
-                    <span class="query-text">"Write a Python function to sort data efficiently"</span>
-                  </button>
-                  <button class="example-query">
-                    <span class="query-icon">🎨</span>
-                    <span class="query-text">"Help me design a modern website layout"</span>
-                  </button>
+              <div class="welcome-features">
+                <div class="feature">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <span>End-to-end encrypted</span>
                 </div>
-
-                <div class="modern-input-container">
-                  <div class="input-wrapper">
-                    <div class="attach-icon" title="Attach files" id="welcomeAttachBtn">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                      </svg>
-                    </div>
-                    
-                    <input
-                      type="text"
-                      class="modern-input"
-                      placeholder="Ask Quist anything..."
-                      autocomplete="off"
-                      id="welcomeInput"
-                    />
-                    
-                    <div class="input-actions">
-                      <button class="modern-voice-btn" title="Voice Input" id="welcomeVoiceBtn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                          <line x1="12" y1="19" x2="12" y2="23" />
-                          <line x1="8" y1="23" x2="16" y2="23" />
-                        </svg>
-                      </button>
-                      
-                      <button class="modern-send-btn" title="Send message" id="welcomeSendBtn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <line x1="22" y1="2" x2="11" y2="13" />
-                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div class="input-hints">
-                    <span class="hint">Press Enter to send • Shift + Enter for new line • Ctrl + / for commands</span>
-                  </div>
+                <div class="feature">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <span>File uploads supported</span>
                 </div>
-
-                <div class="welcome-features">
-                  <div class="feature">
-                    <div class="feature-icon">🔒</div>
-                    <div class="feature-content">
-                      <div class="feature-title">Secure & Private</div>
-                      <div class="feature-desc">Your conversations are encrypted</div>
-                    </div>
-                  </div>
-                  <div class="feature">
-                    <div class="feature-icon">📁</div>
-                    <div class="feature-content">
-                      <div class="feature-title">File Support</div>
-                      <div class="feature-desc">Upload images, PDFs, code, and more</div>
-                    </div>
-                  </div>
-                  <div class="feature">
-                    <div class="feature-icon">⚡</div>
-                    <div class="feature-content">
-                      <div class="feature-title">Fast Responses</div>
-                      <div class="feature-desc">Powered by Claude's latest models</div>
-                    </div>
-                  </div>
+                <div class="feature">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                  <span>Powered by Claude</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- CHAT MESSAGES CONTAINER -->
+          <!-- CHAT MESSAGES -->
           <div id="chat" class="chat-container"></div>
 
           <!-- TYPING INDICATOR -->
@@ -183,24 +184,28 @@
               <span></span>
               <span></span>
             </div>
-            <span class="typing-text">Quist is thinking...</span>
+            <span class="typing-text">Thinking...</span>
           </div>
 
-          <!-- NEW FILE PREVIEW AREA - Above input bar -->
+          <!-- FILE PREVIEW AREA -->
           <div id="filePreviewArea" class="file-preview-area hidden">
             <div class="file-preview-header">
-              <h4>📎 Files to send</h4>
-              <button id="clearAllFiles" class="clear-all-btn">Clear All</button>
+              <span class="file-preview-title">Attachments</span>
+              <button id="clearAllFiles" class="clear-all-btn">Clear all</button>
             </div>
-            <div id="filePreviews" class="file-previews">
-              <!-- File preview cards will be added here dynamically -->
-            </div>
+            <div id="filePreviews" class="file-previews"></div>
           </div>
 
-          <!-- INPUT AREA - Always visible at bottom -->
+          <!-- INPUT AREA -->
           <div class="input-area">
-            <!-- Voice Input Button -->
-            <button id="voiceInputBtn" class="input-action-btn" title="Voice Input">🎤</button>
+            <button id="voiceInputBtn" class="input-action-btn" title="Voice input">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
             
             <input
               id="userInput"
@@ -209,20 +214,22 @@
               autocomplete="off"
             />
             
-            <!-- File Upload -->
-            <button id="fileUploadBtn" class="input-action-btn" title="Upload File">📎</button>
+            <button id="fileUploadBtn" class="input-action-btn" title="Attach file">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            </button>
             
             <button id="sendBtn">Send</button>
           </div>
 
-          <!-- Quick Response Templates -->
+          <!-- QUICK RESPONSES -->
           <div id="quickResponses" class="quick-responses hidden">
-            <h4>Quick Responses</h4>
             <div class="response-templates">
-              <button class="response-template">Can you explain that more simply?</button>
+              <button class="response-template">Explain more simply</button>
               <button class="response-template">What are the pros and cons?</button>
-              <button class="response-template">Can you summarize the key points?</button>
-              <button class="response-template">Show me some alternatives</button>
+              <button class="response-template">Summarize key points</button>
+              <button class="response-template">Show alternatives</button>
             </div>
           </div>
         </div>
@@ -232,10 +239,30 @@
           <div class="artifact-header">
             <h3 id="artifactTitle">Artifact</h3>
             <div class="artifact-actions">
-              <button id="copyArtifact" title="Copy Code">📋</button>
-              <button id="downloadArtifact" title="Download">💾</button>
-              <button id="runArtifact" title="Run Code">▶️</button>
-              <button id="closeArtifact" title="Close">✕</button>
+              <button id="copyArtifact" title="Copy">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+              <button id="downloadArtifact" title="Download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
+              <button id="runArtifact" title="Run">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+              </button>
+              <button id="closeArtifact" title="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
             </div>
           </div>
           <div id="artifactContent" class="artifact-content"></div>
@@ -245,102 +272,108 @@
   </div>
 
   <!-- EMAIL VERIFICATION MODAL -->
-  <div id="verificationModal" class="verification-modal hidden">
-    <div class="verification-content">
+  <div id="verificationModal" class="modal verification-modal hidden">
+    <div class="modal-content verification-content">
       <div class="verification-logo">Q</div>
       
-      <h2>Verify Your Email</h2>
-      <p class="verification-subtitle">Complete your account setup to continue</p>
+      <h2>Verify your email</h2>
+      <p class="modal-subtitle">Complete setup to continue</p>
       
-      <!-- Step 1: Email Input -->
+      <!-- Step 1: Email -->
       <div id="emailStep" class="verification-step">
-        <div class="input-group">
-          <label for="verificationEmail">Email Address</label>
+        <div class="form-group">
+          <label for="verificationEmail">Email address</label>
           <input
             type="email"
             id="verificationEmail"
-            class="verification-input"
+            class="form-input"
             placeholder="you@example.com"
             autocomplete="email"
           />
-          <p class="input-hint">We'll send a verification code to this address</p>
+          <p class="form-hint">We'll send a verification code</p>
         </div>
-        <button id="sendCodeBtn" class="verification-btn primary">
-          <span class="btn-text">📧 Send Verification Code</span>
+        <button id="sendCodeBtn" class="btn-primary full-width">
+          <span class="btn-text">Send code</span>
           <span class="btn-loading hidden">Sending...</span>
         </button>
       </div>
 
-      <!-- Step 2: Code Verification -->
+      <!-- Step 2: Code -->
       <div id="codeStep" class="verification-step hidden">
         <div class="email-display">
           <span class="email-label">Code sent to</span>
-          <span id="displayEmail" class="email-value">user@example.com</span>
+          <span id="displayEmail" class="email-value"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a1d4d2c4d3e1c4d9c0ccd1cdc48fc2cecc">[email&#160;protected]</a></span>
         </div>
         
-        <div class="input-group">
-          <label for="verificationCode">Verification Code</label>
+        <div class="form-group">
+          <label for="verificationCode">Verification code</label>
           <input
             type="text"
             id="verificationCode"
-            class="verification-input code-input"
+            class="form-input code-input"
             placeholder="000000"
             maxlength="6"
             pattern="[0-9]*"
             inputmode="numeric"
           />
-          <p class="input-hint">Enter the 6-digit code from your email</p>
+          <p class="form-hint">Enter the 6-digit code</p>
         </div>
         
         <div class="verification-actions">
-          <button id="verifyCodeBtn" class="verification-btn primary">
-            <span class="btn-text">✅ Verify Code</span>
+          <button id="verifyCodeBtn" class="btn-primary full-width">
+            <span class="btn-text">Verify</span>
             <span class="btn-loading hidden">Verifying...</span>
           </button>
-          <button id="resendCodeBtn" class="verification-btn secondary">↻ Resend Code</button>
-          <button id="changeEmailBtn" class="verification-btn secondary">✏️ Change Email</button>
+          <div class="secondary-actions">
+            <button id="resendCodeBtn" class="btn-link">Resend code</button>
+            <button id="changeEmailBtn" class="btn-link">Change email</button>
+          </div>
         </div>
       </div>
 
-      <!-- Step 3: Username Setup -->
+      <!-- Step 3: Username -->
       <div id="usernameStep" class="verification-step hidden">
-        <div class="input-group">
-          <label for="usernameInput">Choose a Username</label>
+        <div class="form-group">
+          <label for="usernameInput">Display name</label>
           <input
             type="text"
             id="usernameInput"
-            class="verification-input"
-            placeholder="Enter your display name"
+            class="form-input"
+            placeholder="Your name"
             autocomplete="username"
           />
-          <p class="input-hint">This will be visible in your chats</p>
+          <p class="form-hint">This will appear in your chats</p>
         </div>
-        <button id="completeSetupBtn" class="verification-btn primary">
-          <span class="btn-text">✨ Complete Setup</span>
+        <button id="completeSetupBtn" class="btn-primary full-width">
+          <span class="btn-text">Complete setup</span>
           <span class="btn-loading hidden">Setting up...</span>
         </button>
       </div>
 
-      <!-- Messages -->
-      <div id="verificationError" class="verification-message error hidden"></div>
-      <div id="verificationSuccess" class="verification-message success hidden"></div>
+      <div id="verificationError" class="form-message error hidden"></div>
+      <div id="verificationSuccess" class="form-message success hidden"></div>
 
-      <div class="verification-footer">
-        <p>🔐 Your data is encrypted and secure</p>
+      <div class="modal-footer">
+        <p>Your data is encrypted and secure</p>
       </div>
     </div>
   </div>
 
   <!-- SETTINGS MODAL -->
-  <div id="settings" class="settings hidden">
-    <div class="modal-content settings-redesign">
-      <div class="settings-header">
+  <div id="settings" class="modal settings-modal hidden">
+    <div class="modal-content settings-content">
+      <div class="modal-header">
         <h3>Settings</h3>
-        <button id="closeSettings" class="settings-close">✕</button>
+        <button id="closeSettings" class="close-btn" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
 
       <div class="settings-tabs">
-        <button class="settings-tab active" data-tab="model">AI Model</button>
+        <button class="settings-tab active" data-tab="model">Model</button>
         <button class="settings-tab" data-tab="appearance">Appearance</button>
         <button class="settings-tab" data-tab="behavior">Behavior</button>
         <button class="settings-tab" data-tab="sound">Sound</button>
@@ -356,70 +389,66 @@
               <option value="claude-3-sonnet-20240229">Claude Sonnet (Balanced)</option>
               <option value="claude-3-opus-20240229">Claude Opus (Best)</option>
             </select>
-            <p class="setting-hint">Choose the AI model for your conversations</p>
+            <p class="setting-hint">Choose the model for responses</p>
           </div>
 
           <div class="setting-block">
             <div class="setting-header">
-              <label for="temperature">Temperature: <span id="temperatureValue">0.7</span></label>
+              <label for="temperature">Temperature</label>
+              <span id="temperatureValue" class="setting-value">0.7</span>
             </div>
             <input type="range" id="temperature" min="0" max="20" value="7">
             <div class="slider-labels">
               <span>Precise</span>
-              <span>Balanced</span>
               <span>Creative</span>
             </div>
-            <p class="setting-hint">Controls randomness in responses</p>
           </div>
 
           <div class="setting-block">
             <div class="setting-header">
-              <label for="maxTokens">Max Tokens: <span id="maxTokensValue">4096</span></label>
+              <label for="maxTokens">Max tokens</label>
+              <span id="maxTokensValue" class="setting-value">4096</span>
             </div>
             <input type="range" id="maxTokens" min="512" max="8192" step="256" value="4096">
             <div class="slider-labels">
               <span>Short</span>
-              <span>Medium</span>
               <span>Long</span>
             </div>
-            <p class="setting-hint">Maximum length of AI responses</p>
           </div>
         </section>
 
         <section class="settings-panel" data-panel="appearance">
           <div class="setting-block">
-            <label for="accentColor">Accent Color</label>
-            <input type="color" id="accentColor" value="#00d4ff">
-            <p class="setting-hint">Primary color for UI elements</p>
+            <label for="accentColor">Accent color</label>
+            <input type="color" id="accentColor" value="#18181b">
+            <p class="setting-hint">Primary UI color</p>
           </div>
 
           <div class="setting-block">
             <label for="backgroundSelect">Theme</label>
             <select id="backgroundSelect">
-              <option value="default">Default</option>
-              <option value="quist-blue">Quist Blue</option>
-              <option value="cosmic-purple">Cosmic Purple</option>
-              <option value="cyberpunk">Cyberpunk</option>
-              <option value="dark-void">Dark Void</option>
+              <option value="default">Light</option>
+              <option value="quist-blue">Blue</option>
+              <option value="cosmic-purple">Purple</option>
+              <option value="cyberpunk">Dark</option>
+              <option value="dark-void">Void</option>
             </select>
-            <p class="setting-hint">Change the background theme</p>
           </div>
 
           <div class="setting-block">
-            <label for="fontSize">Font Size</label>
+            <label for="fontSize">Font size</label>
             <select id="fontSize">
               <option value="small">Small</option>
               <option value="medium" selected>Medium</option>
               <option value="large">Large</option>
             </select>
-            <p class="setting-hint">Adjust text size for better readability</p>
           </div>
         </section>
 
         <section class="settings-panel" data-panel="behavior">
           <div class="toggle-row">
             <label>
-              <span class="toggle-label">Deep Thinking Mode</span>
+              <span class="toggle-label">Deep thinking</span>
               <span class="toggle-description">Enhanced analysis for complex questions</span>
             </label>
             <input type="checkbox" id="deepThinkingToggle" class="toggle-switch">
@@ -427,23 +456,23 @@
 
           <div class="toggle-row">
             <label>
-              <span class="toggle-label">Research Internet</span>
-              <span class="toggle-description">Enable web search for queries</span>
+              <span class="toggle-label">Web search</span>
+              <span class="toggle-description">Search the internet for current information</span>
             </label>
             <input type="checkbox" id="researchInternetToggle" class="toggle-switch">
           </div>
 
           <div class="toggle-row">
             <label>
-              <span class="toggle-label">Typing Indicator</span>
-              <span class="toggle-description">Show when AI is typing</span>
+              <span class="toggle-label">Typing indicator</span>
+              <span class="toggle-description">Show when AI is responding</span>
             </label>
             <input type="checkbox" id="typingIndicatorToggle" class="toggle-switch" checked>
           </div>
 
           <div class="toggle-row">
             <label>
-              <span class="toggle-label">Auto-Open Code Artifacts</span>
+              <span class="toggle-label">Auto-open artifacts</span>
               <span class="toggle-description">Open code panels automatically</span>
             </label>
             <input type="checkbox" id="autoOpenArtifactsToggle" class="toggle-switch" checked>
@@ -453,75 +482,57 @@
         <section class="settings-panel" data-panel="sound">
           <div class="toggle-row">
             <label>
-              <span class="toggle-label">Enable Sounds</span>
-              <span class="toggle-description">Play sound effects</span>
+              <span class="toggle-label">Sound effects</span>
+              <span class="toggle-description">Play audio feedback</span>
             </label>
             <input type="checkbox" id="soundToggle" class="toggle-switch" checked>
           </div>
 
           <div class="setting-block">
             <div class="setting-header">
-              <label for="soundVolume">Volume: <span id="soundVolumeValue">70%</span></label>
+              <label for="soundVolume">Volume</label>
+              <span id="soundVolumeValue" class="setting-value">70%</span>
             </div>
             <input type="range" id="soundVolume" min="0" max="100" value="70">
-            <div class="slider-labels">
-              <span>Mute</span>
-              <span>Medium</span>
-              <span>Loud</span>
-            </div>
           </div>
 
           <div class="sound-toggles">
-            <div class="sound-toggle">
-              <label>
-                <span>Message Sent</span>
-                <input type="checkbox" id="soundMessageSentToggle" checked>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Message Received</span>
-                <input type="checkbox" id="soundMessageReceivedToggle" checked>
-              </label>
-            </div>
-            <div class="sound-toggle">
-              <label>
-                <span>Success Sounds</span>
-                <input type="checkbox" id="soundSuccessToggle" checked>
-              </label>
-            </div>
+            <label class="sound-toggle">
+              <span>Message sent</span>
+              <input type="checkbox" id="soundMessageSentToggle" checked>
+            </label>
+            <label class="sound-toggle">
+              <span>Message received</span>
+              <input type="checkbox" id="soundMessageReceivedToggle" checked>
+            </label>
+            <label class="sound-toggle">
+              <span>Success sounds</span>
+              <input type="checkbox" id="soundSuccessToggle" checked>
+            </label>
           </div>
         </section>
 
         <section class="settings-panel" data-panel="data">
           <div class="data-actions">
-            <button id="exportChat" class="settings-action">
-              📤 Export Current Chat
-            </button>
-            <button id="backupChats" class="settings-action">
-              💾 Backup All Chats
-            </button>
-            <button id="exportSettings" class="settings-action">
-              ⚙️ Export Settings
-            </button>
-            <button id="resetSettings" class="settings-action danger">
-              🗑️ Reset to Defaults
-            </button>
+            <button id="exportChat" class="btn-secondary">Export current chat</button>
+            <button id="backupChats" class="btn-secondary">Backup all chats</button>
+            <button id="exportSettings" class="btn-secondary">Export settings</button>
+            <button id="resetSettings" class="btn-secondary danger">Reset to defaults</button>
           </div>
           
           <div class="setting-block">
-            <label>Data Usage</label>
+            <label>Storage usage</label>
             <div class="data-stats">
               <div class="data-stat">
-                <span>Chat Storage:</span>
+                <span>Chat storage</span>
                 <span id="storageUsage">0 KB</span>
               </div>
               <div class="data-stat">
-                <span>Local Storage:</span>
+                <span>Local storage</span>
                 <span id="localStorageUsage">0 KB</span>
               </div>
             </div>
-            <button id="clearCache" class="settings-action secondary">Clear Cache</button>
+            <button id="clearCache" class="btn-secondary">Clear cache</button>
           </div>
         </section>
       </div>
@@ -529,11 +540,16 @@
   </div>
 
   <!-- THINKING MODAL -->
-  <div id="thinkingModal" class="thinking-modal hidden">
-    <div class="thinking-content">
-      <div class="thinking-icon">🧠</div>
-      <h3>Deep Thinking Mode</h3>
-      <p class="thinking-subtitle">Processing your request with enhanced analysis...</p>
+  <div id="thinkingModal" class="modal thinking-modal hidden">
+    <div class="modal-content thinking-content">
+      <div class="thinking-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <h3>Processing</h3>
+      <p class="modal-subtitle">Analyzing your request...</p>
       
       <div class="thinking-progress">
         <div class="thinking-progress-bar">
@@ -552,17 +568,20 @@
         <span></span>
         <span></span>
       </div>
-      
-      <p class="thinking-tip">Tip: Complex questions may take longer to process</p>
     </div>
   </div>
 
   <!-- RESEARCH MODAL -->
-  <div id="researchModal" class="research-modal hidden">
-    <div class="research-content">
-      <div class="research-icon">🔍</div>
-      <h3>Researching Internet</h3>
-      <p class="research-subtitle">Gathering current information from the web...</p>
+  <div id="researchModal" class="modal research-modal hidden">
+    <div class="modal-content research-content">
+      <div class="research-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <h3>Searching</h3>
+      <p class="modal-subtitle">Finding current information...</p>
       
       <div class="research-progress">
         <div class="research-progress-bar">
@@ -570,27 +589,22 @@
         </div>
         <div class="research-stats">
           <div class="research-stat">
-            <span class="stat-label">Sources Found:</span>
+            <span class="stat-label">Sources</span>
             <span id="sourcesCount" class="stat-value">0</span>
           </div>
           <div class="research-stat">
-            <span class="stat-label">Data Analyzed:</span>
+            <span class="stat-label">Progress</span>
             <span id="dataAnalyzed" class="stat-value">0%</span>
           </div>
         </div>
       </div>
       
       <div class="research-log">
-        <div class="log-entry">🔎 Searching for relevant sources...</div>
-        <div class="log-entry">📄 Analyzing content credibility...</div>
-        <div class="log-entry">🧠 Synthesizing information...</div>
-        <div class="log-entry">📊 Cross-referencing data...</div>
+        <div class="log-entry">Searching sources...</div>
+        <div class="log-entry">Analyzing content...</div>
+        <div class="log-entry">Synthesizing results...</div>
       </div>
-      
-      <button id="cancelResearch" class="research-cancel-btn">Cancel Research</button>
     </div>
   </div>
-
-  <script src="script.js" defer></script>
-</body>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
 </html>
