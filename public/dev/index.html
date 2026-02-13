@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>quist.world — Dev Portal</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loginView" class="view">
+  <div class="login-card">
+    <div class="logo">QUIST<span>.world</span></div>
+    <div class="login-sub">Dev Portal</div>
+    <input type="text" id="loginUser" placeholder="Username" autocomplete="off">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="login()">Sign In</button>
+    <div id="loginErr" class="err"></div>
+  </div>
+</div>
+
+<div id="mainView" class="view" style="display:none">
+  <header>
+    <div class="logo-sm">QUIST<span>.world</span></div>
+    <nav>
+      <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
+      <button class="nav-btn" onclick="showTab('upload')">Upload</button>
+      <button class="nav-btn" onclick="showTab('builds')">Builds</button>
+      <button class="nav-btn" onclick="showTab('settings')">Settings</button>
+    </nav>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </header>
+
+  <!-- Dashboard -->
+  <section id="tab-dashboard" class="tab active">
+    <h2>Dashboard</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="statTotal">-</div>
+        <div class="stat-label">Total Downloads</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statToday">-</div>
+        <div class="stat-label">Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statInternal">-</div>
+        <div class="stat-label">Internal DLs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statExternal">-</div>
+        <div class="stat-label">External DLs</div>
+      </div>
+    </div>
+    <h3>Current Builds</h3>
+    <div class="current-builds">
+      <div class="build-status" id="currentInternal">
+        <span class="type-badge internal">INTERNAL</span>
+        <span class="ver" id="curInternalVer">No build set</span>
+      </div>
+      <div class="build-status" id="currentExternal">
+        <span class="type-badge external">EXTERNAL</span>
+        <span class="ver" id="curExternalVer">No build set</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Upload -->
+  <section id="tab-upload" class="tab">
+    <h2>Upload Build</h2>
+    <div class="upload-card">
+      <div class="field">
+        <label>Type</label>
+        <div class="pill-group">
+          <button class="pill active" onclick="setType('internal',this)">Internal (DLL)</button>
+          <button class="pill" onclick="setType('external',this)">External (EXE)</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Version</label>
+        <input type="text" id="uploadVersion" placeholder="e.g. 1.0.3">
+      </div>
+      <div class="field">
+        <label>Changelog</label>
+        <textarea id="uploadChangelog" placeholder="What changed..."></textarea>
+      </div>
+      <div class="field">
+        <label>File</label>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="drop-icon">📁</div>
+          <div class="drop-text" id="dropText">Drop .dll or .exe here, or click to browse</div>
+          <input type="file" id="fileInput" accept=".dll,.exe" style="display:none" onchange="fileSelected(this)">
+        </div>
+      </div>
+      <div class="field">
+        <label class="checkbox-wrap">
+          <input type="checkbox" id="uploadLatest" checked>
+          <span>Set as latest build</span>
+        </label>
+      </div>
+      <button class="upload-btn" onclick="uploadBuild()">Upload Build</button>
+      <div class="progress" id="uploadProgress" style="display:none">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div id="uploadStatus" class="status"></div>
+    </div>
+  </section>
+
+  <!-- Builds -->
+  <section id="tab-builds" class="tab">
+    <h2>All Builds</h2>
+    <div id="buildsList" class="builds-list"></div>
+  </section>
+
+  <!-- Settings -->
+  <section id="tab-settings" class="tab">
+    <h2>Settings</h2>
+    <div class="settings-card">
+      <h3>Change Password</h3>
+      <input type="password" id="newPass" placeholder="New password (min 6 chars)">
+      <button onclick="changePass()">Update Password</button>
+      <div id="passStatus" class="status"></div>
+    </div>
+    <div class="settings-card">
+      <h3>Launcher Endpoint</h3>
+      <code>GET https://quist.world/api/download/internal</code><br>
+      <code>GET https://quist.world/api/download/external</code><br>
+      <code>GET https://quist.world/api/version/internal</code>
+    </div>
+  </section>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
