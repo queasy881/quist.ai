@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+/* ═══════════════════════════════════════════
+   STRICT 2-HEX SYSTEM
+   Deep White  : #F0F6FC
+   Ice Blue    : #B9E7FF
+   Dark bg derived from ice blue darkened.
+   ═══════════════════════════════════════════ */
+:root{
+  --dw:#F0F6FC;
+  --ib:#B9E7FF;
+  --bg-deep:#080d11;
+  --bg-panel:rgba(11,17,23,0.72);
+  --bg-input:rgba(14,21,28,0.75);
+  --frost:rgba(240,246,252,0.04);
+  --frost-border:rgba(240,246,252,0.08);
+  --frost-hover:rgba(240,246,252,0.07);
+  --text-primary:rgba(240,246,252,0.92);
+  --text-secondary:rgba(240,246,252,0.52);
+  --text-dim:rgba(240,246,252,0.24);
+  --accent:#B9E7FF;
+  --accent-glow:rgba(185,231,255,0.12);
+  --radius:12px;
+  --radius-sm:8px;
+  --sidebar-w:260px;
+}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--bg-deep);color:var(--text-primary)}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 700px 500px at 10% 15%,rgba(185,231,255,0.045) 0%,transparent 60%),radial-gradient(ellipse 500px 450px at 88% 80%,rgba(185,231,255,0.03) 0%,transparent 55%);animation:bgShift 22s ease-in-out infinite alternate}
+@keyframes bgShift{0%{opacity:.6;transform:scale(1)}100%{opacity:1;transform:scale(1.06)}}
+
+.app{display:flex;height:100vh;position:relative;z-index:1}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100%;display:flex;flex-direction:column;background:var(--bg-panel);backdrop-filter:blur(44px) saturate(1.3);-webkit-backdrop-filter:blur(44px) saturate(1.3);border-right:1px solid var(--frost-border);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.sidebar-header{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--frost-border)}
+.logo-mark{width:32px;height:32px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--bg-deep);box-shadow:0 2px 14px var(--accent-glow);flex-shrink:0}
+.logo-text{font-weight:600;font-size:14px;letter-spacing:-.02em;color:var(--text-primary)}
+.logo-text span{color:var(--text-secondary);font-weight:400;margin-left:4px;font-size:12px}
+.new-chat-btn{margin:14px 14px 8px;padding:10px 14px;border-radius:var(--radius-sm);background:var(--frost);border:1px solid var(--frost-border);color:var(--text-primary);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+.new-chat-btn:hover{background:var(--frost-hover);border-color:rgba(240,246,252,0.14);transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,0,0,0.35)}
+.new-chat-btn .icon{font-size:16px;color:var(--accent)}
+.sidebar-section-label{padding:16px 18px 6px;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+.chat-list{flex:1;overflow-y:auto;padding:4px 8px}
+.chat-list::-webkit-scrollbar{width:4px}
+.chat-list::-webkit-scrollbar-thumb{background:rgba(240,246,252,0.06);border-radius:4px}
+.chat-item{padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;transition:all .15s;margin-bottom:2px;border:1px solid transparent}
+.chat-item:hover{background:var(--frost);color:var(--text-primary)}
+.chat-item.active{background:var(--frost-hover);color:var(--text-primary);border-color:var(--frost-border)}
+.chat-item .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;opacity:0}
+.chat-item.active .dot{opacity:1;box-shadow:0 0 6px var(--accent-glow)}
+.chat-item .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-item .time{margin-left:auto;font-size:10px;color:var(--text-dim);flex-shrink:0}
+.sidebar-footer{padding:14px;border-top:1px solid var(--frost-border);display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;background:rgba(185,231,255,0.12);border:1px solid rgba(185,231,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent);flex-shrink:0}
+.user-info{overflow:hidden}
+.user-name{font-size:12px;font-weight:500;color:var(--text-primary)}
+.user-plan{font-size:10px;color:var(--text-dim)}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden}
+.topbar{height:48px;display:flex;align-items:center;padding:0 20px;gap:12px;border-bottom:1px solid var(--frost-border);background:rgba(8,13,17,0.5);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0}
+.topbar-title{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.topbar-model{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 8px;border-radius:6px;background:var(--accent-glow);color:var(--accent);font-weight:500}
+.topbar-spacer{flex:1}
+.topbar-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--frost-border);background:var(--frost);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s}
+.topbar-btn:hover{background:var(--frost-hover);color:var(--text-primary)}
+
+/* Messages */
+.messages{flex:1;overflow-y:auto;padding:24px 0;scroll-behavior:smooth}
+.messages::-webkit-scrollbar{width:6px}
+.messages::-webkit-scrollbar-thumb{background:rgba(240,246,252,0.05);border-radius:6px}
+.msg-container{max-width:760px;margin:0 auto;padding:0 24px}
+.message{margin-bottom:24px;animation:msgIn .4s cubic-bezier(.16,1,.3,1) both}
+@keyframes msgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.message.user{display:flex;justify-content:flex-end}
+.message.user .msg-bubble{background:rgba(185,231,255,0.08);border:1px solid rgba(185,231,255,0.12);border-radius:var(--radius) var(--radius) 4px var(--radius);padding:12px 16px;max-width:85%;font-size:13.5px;line-height:1.6;color:var(--text-primary)}
+.message.assistant{display:flex;gap:12px}
+.msg-avatar{width:28px;height:28px;border-radius:8px;flex-shrink:0;margin-top:2px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--bg-deep);box-shadow:0 2px 10px var(--accent-glow)}
+.msg-body{flex:1;min-width:0}
+.msg-name{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:6px;letter-spacing:.02em}
+.msg-text{font-size:13.5px;line-height:1.7;color:rgba(240,246,252,0.82)}
+.msg-text p{margin-bottom:10px}
+.msg-text p:last-child{margin-bottom:0}
+
+/* Code */
+.code-block{margin:12px 0;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--frost-border)}
+.code-header{padding:8px 14px;display:flex;align-items:center;justify-content:space-between;background:rgba(240,246,252,0.025);border-bottom:1px solid var(--frost-border);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)}
+.code-header .copy-btn{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--frost-border);background:transparent;color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.code-header .copy-btn:hover{background:var(--frost);color:var(--text-secondary)}
+.code-body{padding:14px 16px;background:rgba(0,0,0,0.2);font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.65;overflow-x:auto;color:rgba(240,246,252,0.55)}
+.code-body::-webkit-scrollbar{height:4px}
+.code-body::-webkit-scrollbar-thumb{background:rgba(240,246,252,0.05);border-radius:4px}
+.kw{color:rgba(185,231,255,0.9)}
+.fn{color:rgba(185,231,255,0.7)}
+.str{color:rgba(240,246,252,0.45)}
+.num{color:rgba(185,231,255,0.6)}
+
+/* Thinking */
+.thinking{display:flex;align-items:center;gap:8px;padding:8px 0;color:var(--text-dim);font-size:12px}
+.thinking-dots{display:flex;gap:3px}
+.thinking-dots span{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.3;animation:pulse 1.4s ease-in-out infinite}
+.thinking-dots span:nth-child(2){animation-delay:.2s}
+.thinking-dots span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.15;transform:scale(.8)}50%{opacity:.7;transform:scale(1.1)}}
+
+/* Input */
+.input-area{padding:16px 24px 20px;flex-shrink:0;background:linear-gradient(to top,rgba(8,13,17,0.97),rgba(8,13,17,0.6),transparent)}
+.input-wrapper{max-width:760px;margin:0 auto;background:var(--bg-input);backdrop-filter:blur(30px) saturate(1.3);-webkit-backdrop-filter:blur(30px) saturate(1.3);border:1px solid var(--frost-border);border-radius:16px;padding:6px;transition:border-color .2s,box-shadow .2s;position:relative}
+.input-wrapper:focus-within{border-color:rgba(185,231,255,0.2);box-shadow:0 0 0 3px rgba(185,231,255,0.04),0 8px 32px rgba(0,0,0,0.45)}
+.input-row{display:flex;align-items:flex-end;gap:6px}
+.input-tools{display:flex;align-items:center;gap:2px;padding:0 4px 4px 6px}
+.tool-btn{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .15s}
+.tool-btn:hover{background:var(--frost);color:var(--text-secondary)}
+textarea{flex:1;resize:none;border:none;outline:none;background:transparent;color:var(--text-primary);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;padding:10px 8px 10px 4px;max-height:160px;min-height:42px}
+textarea::placeholder{color:var(--text-dim)}
+.send-btn{width:36px;height:36px;border-radius:10px;border:none;background:var(--accent);color:var(--bg-deep);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-bottom:4px;margin-right:4px;transition:all .2s;font-size:16px;font-weight:700;box-shadow:0 2px 14px var(--accent-glow)}
+.send-btn:hover{transform:scale(1.06);box-shadow:0 4px 22px rgba(185,231,255,0.2)}
+.send-btn:active{transform:scale(0.96)}
+.send-btn.disabled{opacity:.25;pointer-events:none;box-shadow:none}
+.input-hint{text-align:center;margin-top:8px;font-size:10.5px;color:var(--text-dim)}
+
+/* Empty */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;text-align:center}
+.empty-logo{width:56px;height:56px;border-radius:16px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:24px;color:var(--bg-deep);box-shadow:0 4px 28px var(--accent-glow);margin-bottom:20px;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.empty-title{font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--text-dim);max-width:320px;line-height:1.5}
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;justify-content:center;max-width:520px}
+.suggestion{padding:8px 14px;border-radius:20px;font-size:12px;background:var(--frost);border:1px solid var(--frost-border);color:var(--text-secondary);cursor:pointer;transition:all .2s}
+.suggestion:hover{background:rgba(185,231,255,0.08);color:var(--accent);border-color:rgba(185,231,255,0.15);transform:translateY(-1px)}
+
+@media(max-width:768px){
+  .sidebar{position:fixed;left:0;top:0;z-index:10;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .msg-container{padding:0 14px}
+  .input-area{padding:10px 14px 16px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">C</div>
+      <div class="logo-text">Claude <span>Code</span></div>
+    </div>
+    <button class="new-chat-btn" onclick="newChat()"><span class="icon">＋</span> New Chat</button>
+    <div class="sidebar-section-label">Recent</div>
+    <div class="chat-list" id="chatList">
+      <div class="chat-item active"><span class="dot"></span><span class="label">Build a REST API with auth</span><span class="time">2m</span></div>
+      <div class="chat-item"><span class="dot"></span><span class="label">Debug memory leak in worker</span><span class="time">1h</span></div>
+      <div class="chat-item"><span class="dot"></span><span class="label">Refactor database schema</span><span class="time">3h</span></div>
+      <div class="chat-item"><span class="dot"></span><span class="label">Setup CI/CD pipeline</span><span class="time">1d</span></div>
+      <div class="chat-item"><span class="dot"></span><span class="label">React component library</span><span class="time">2d</span></div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">U</div>
+      <div class="user-info"><div class="user-name">User</div><div class="user-plan">Pro Plan</div></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="topbar-btn" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none" id="menuBtn">☰</button>
+      <span class="topbar-title">Chat</span>
+      <span class="topbar-model">claude-4-opus</span>
+      <div class="topbar-spacer"></div>
+      <button class="topbar-btn" title="Settings">⚙</button>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="msg-container" id="msgContainer">
+        <div class="message user" style="animation-delay:.1s"><div class="msg-bubble">Build me a REST API with JWT authentication using Express and TypeScript</div></div>
+        <div class="message assistant" style="animation-delay:.2s">
+          <div class="msg-avatar">C</div>
+          <div class="msg-body">
+            <div class="msg-name">Claude</div>
+            <div class="msg-text">
+              <p>I'll set up an Express + TypeScript REST API with JWT auth. Here's the core authentication middleware:</p>
+              <div class="code-block">
+                <div class="code-header"><span>auth.middleware.ts</span><button class="copy-btn">Copy</button></div>
+                <div class="code-body"><span class="kw">import</span> { Request, Response, NextFunction } <span class="kw">from</span> <span class="str">'express'</span>;
+<span class="kw">import</span> jwt <span class="kw">from</span> <span class="str">'jsonwebtoken'</span>;
+
+<span class="kw">export const</span> <span class="fn">authenticate</span> = (
+  req: Request, res: Response, next: NextFunction
+) => {
+  <span class="kw">const</span> token = req.headers.authorization?.<span class="fn">split</span>(<span class="str">' '</span>)[<span class="num">1</span>];
+
+  <span class="kw">if</span> (!token) {
+    <span class="kw">return</span> res.<span class="fn">status</span>(<span class="num">401</span>).<span class="fn">json</span>({
+      error: <span class="str">'Authentication required'</span>
+    });
+  }
+
+  <span class="kw">try</span> {
+    <span class="kw">const</span> decoded = jwt.<span class="fn">verify</span>(token, process.env.JWT_SECRET!);
+    req.user = decoded;
+    <span class="fn">next</span>();
+  } <span class="kw">catch</span> {
+    res.<span class="fn">status</span>(<span class="num">403</span>).<span class="fn">json</span>({ error: <span class="str">'Invalid token'</span> });
+  }
+};</div>
+              </div>
+              <p>This validates the Bearer token on protected routes. Want me to add the user registration and login endpoints next?</p>
+            </div>
+          </div>
+        </div>
+        <div class="message user" style="animation-delay:.3s"><div class="msg-bubble">Yes, add registration and login with password hashing</div></div>
+        <div class="message assistant" style="animation-delay:.4s">
+          <div class="msg-avatar">C</div>
+          <div class="msg-body">
+            <div class="msg-name">Claude</div>
+            <div class="msg-text">
+              <div class="thinking"><div class="thinking-dots"><span></span><span></span><span></span></div>Thinking…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrapper">
+        <div class="input-row">
+          <div class="input-tools">
+            <button class="tool-btn" title="Attach file">📎</button>
+            <button class="tool-btn" title="Terminal">⌘</button>
+          </div>
+          <textarea id="input" rows="1" placeholder="Ask Claude anything…" oninput="autoResize(this);toggleSend()" onkeydown="handleKey(event)"></textarea>
+          <button class="send-btn disabled" id="sendBtn" onclick="sendMessage()">↑</button>
+        </div>
+      </div>
+      <div class="input-hint">Claude can make mistakes. Review important code carefully.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const input=document.getElementById('input'),sendBtn=document.getElementById('sendBtn'),msgContainer=document.getElementById('msgContainer'),messagesEl=document.getElementById('messages');
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,160)+'px'}
+function toggleSend(){sendBtn.classList.toggle('disabled',!input.value.trim())}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}}
+function scrollBottom(){messagesEl.scrollTo({top:messagesEl.scrollHeight,behavior:'smooth'})}
+function sendMessage(){
+  const text=input.value.trim();if(!text)return;
+  const u=document.createElement('div');u.className='message user';
+  u.innerHTML=`<div class="msg-bubble">${esc(text)}</div>`;
+  msgContainer.appendChild(u);input.value='';autoResize(input);toggleSend();scrollBottom();
+  setTimeout(()=>{
+    const a=document.createElement('div');a.className='message assistant';
+    a.innerHTML=`<div class="msg-avatar">C</div><div class="msg-body"><div class="msg-name">Claude</div><div class="msg-text"><p>I'll help you with that. Let me think through the best approach…</p></div></div>`;
+    msgContainer.appendChild(a);scrollBottom();
+  },800);
+}
+function newChat(){
+  msgContainer.innerHTML=`<div class="empty-state"><div class="empty-logo">C</div><div class="empty-title">What are you building?</div><div class="empty-sub">Claude can help you write, debug, and understand code across any language or framework.</div><div class="suggestions"><div class="suggestion" onclick="fillSuggestion(this)">Build a REST API</div><div class="suggestion" onclick="fillSuggestion(this)">Debug my code</div><div class="suggestion" onclick="fillSuggestion(this)">Write unit tests</div><div class="suggestion" onclick="fillSuggestion(this)">Explain this error</div></div></div>`;
+}
+function fillSuggestion(el){input.value=el.textContent;autoResize(input);toggleSend();input.focus()}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+document.querySelectorAll('.chat-item').forEach(item=>{item.addEventListener('click',()=>{document.querySelectorAll('.chat-item').forEach(i=>i.classList.remove('active'));item.classList.add('active')})});
+const mq=window.matchMedia('(max-width:768px)');function checkMenu(){document.getElementById('menuBtn').style.display=mq.matches?'flex':'none'}mq.addEventListener('change',checkMenu);checkMenu();scrollBottom();
+</script>
+</body>
+</html>

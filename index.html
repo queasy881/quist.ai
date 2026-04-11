@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- Background image layer -->
+<div class="bg-image" aria-hidden="true"></div>
+
+<!-- Ambient particle canvas -->
+<canvas id="particleCanvas" class="particle-canvas" aria-hidden="true"></canvas>
+
+<div class="app" role="application" aria-label="Claude Code Assistant">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Chat history">
+    <div class="sidebar-header">
+      <!-- Animated SVG Buddy -->
+      <div class="buddy-container" aria-hidden="true">
+        <svg class="buddy-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="buddyGrad" x1="0" y1="0" x2="48" y2="48">
+              <stop offset="0%" stop-color="#B9E7FF"/>
+              <stop offset="100%" stop-color="#7BC8F6"/>
+            </linearGradient>
+            <filter id="buddyGlow">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- Head -->
+          <rect x="4" y="4" width="40" height="40" rx="14" fill="url(#buddyGrad)" filter="url(#buddyGlow)"/>
+          <!-- Eyes -->
+          <circle class="buddy-eye buddy-eye-l" cx="17" cy="22" r="3.5" fill="#080d11"/>
+          <circle class="buddy-eye buddy-eye-r" cx="31" cy="22" r="3.5" fill="#080d11"/>
+          <!-- Eye glints -->
+          <circle cx="18.5" cy="20.5" r="1.2" fill="rgba(255,255,255,0.7)"/>
+          <circle cx="32.5" cy="20.5" r="1.2" fill="rgba(255,255,255,0.7)"/>
+          <!-- Mouth -->
+          <path class="buddy-mouth" d="M18 31 Q24 36 30 31" stroke="#080d11" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <!-- Antenna -->
+          <line class="buddy-antenna" x1="24" y1="4" x2="24" y2="-4" stroke="url(#buddyGrad)" stroke-width="2" stroke-linecap="round"/>
+          <circle class="buddy-antenna-dot" cx="24" cy="-6" r="3" fill="#B9E7FF"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-title">Claude</span>
+        <span class="logo-sub">Code</span>
+      </div>
+      <div class="sidebar-status" id="connectionStatus" title="Connected">
+        <span class="status-dot online"></span>
+      </div>
+    </div>
+
+    <button class="new-chat-btn" onclick="newChat()" aria-label="Start new chat">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>New Chat</span>
+      <kbd class="kbd-hint">Ctrl+N</kbd>
+    </button>
+
+    <div class="sidebar-search">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input type="text" id="chatSearch" class="chat-search-input" placeholder="Search chats..." oninput="filterChats(this.value)" aria-label="Search chats">
+    </div>
+
+    <div class="sidebar-section-label">Recent</div>
+    <div class="chat-list" id="chatList" role="list" aria-label="Chat history list"></div>
+
+    <div class="sidebar-footer">
+      <div class="avatar-ring">
+        <div class="avatar">U</div>
+      </div>
+      <div class="user-info">
+        <div class="user-name">User</div>
+        <div class="user-plan">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 1l2.1 4.3 4.7.7-3.4 3.3.8 4.7L8 11.8 3.8 14l.8-4.7L1.2 6l4.7-.7L8 1z" fill="#B9E7FF"/></svg>
+          Pro Plan
+        </div>
+      </div>
+      <button class="sidebar-settings-btn" onclick="openSettings()" aria-label="Settings" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Sidebar resize handle -->
+  <div class="sidebar-resize" id="sidebarResize" aria-hidden="true"></div>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main" role="main">
+
+    <!-- Top bar -->
+    <header class="topbar" role="banner">
+      <button class="topbar-btn mobile-menu" onclick="toggleSidebar()" id="menuBtn" aria-label="Toggle sidebar">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+
+      <div class="topbar-breadcrumb">
+        <span class="topbar-title" id="topbarTitle">New Chat</span>
+      </div>
+
+      <div class="model-selector" role="listbox" aria-label="Model selection">
+        <button class="model-btn" id="modelBtn" onclick="toggleModelDropdown()" aria-haspopup="listbox">
+          <svg class="model-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 5v6l7 4 7-4V5L8 1z" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M1 5l7 4 7-4M8 9v6" stroke="currentColor" stroke-width="1.2"/></svg>
+          <span id="modelLabel">Sonnet 4.6</span>
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="model-dropdown" id="modelDropdown">
+          <div class="model-option" data-value="claude-opus-4-20250514" onclick="selectModel(this)" role="option">
+            <div class="model-option-name">Claude Opus 4.6</div>
+            <div class="model-option-desc">Most capable — complex reasoning</div>
+          </div>
+          <div class="model-option selected" data-value="claude-sonnet-4-20250514" onclick="selectModel(this)" role="option" aria-selected="true">
+            <div class="model-option-name">Claude Sonnet 4.6</div>
+            <div class="model-option-desc">Balanced — fast & smart</div>
+          </div>
+          <div class="model-option" data-value="claude-haiku-4-5-20251001" onclick="selectModel(this)" role="option">
+            <div class="model-option-name">Claude Haiku 4.5</div>
+            <div class="model-option-desc">Fastest — quick tasks</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="topbar-actions">
+      </div>
+    </header>
+
+    <!-- Messages area -->
+    <div class="messages" id="messages" role="log" aria-label="Chat messages" aria-live="polite">
+      <div class="msg-container" id="msgContainer">
+        <div class="empty-state" id="emptyState">
+          <!-- Big buddy -->
+          <div class="empty-buddy" aria-hidden="true">
+            <svg class="buddy-svg-lg" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="buddyGradLg" x1="0" y1="0" x2="80" y2="80">
+                  <stop offset="0%" stop-color="#B9E7FF"/>
+                  <stop offset="50%" stop-color="#93D9FF"/>
+                  <stop offset="100%" stop-color="#6CC4F0"/>
+                </linearGradient>
+              </defs>
+              <rect x="6" y="6" width="68" height="68" rx="22" fill="url(#buddyGradLg)"/>
+              <circle class="buddy-eye buddy-eye-l" cx="28" cy="36" r="5.5" fill="#080d11"/>
+              <circle class="buddy-eye buddy-eye-r" cx="52" cy="36" r="5.5" fill="#080d11"/>
+              <circle cx="30" cy="33.5" r="2" fill="rgba(255,255,255,0.7)"/>
+              <circle cx="54" cy="33.5" r="2" fill="rgba(255,255,255,0.7)"/>
+              <path class="buddy-mouth" d="M28 52 Q40 62 52 52" stroke="#080d11" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <h1 class="empty-title">What are you building?</h1>
+          <p class="empty-sub">I can write code, debug issues, manage files, run commands, and control your system. Let's build something.</p>
+
+          <div class="suggestion-grid" role="list" aria-label="Suggested prompts">
+            <button class="suggestion-card" onclick="fillSuggestion(this)" role="listitem">
+              <div class="suggestion-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 7l4 4-4 4M10 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="suggestion-text">
+                <div class="suggestion-title">Build a REST API</div>
+                <div class="suggestion-desc">Express, Flask, FastAPI...</div>
+              </div>
+            </button>
+            <button class="suggestion-card" onclick="fillSuggestion(this)" role="listitem">
+              <div class="suggestion-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </div>
+              <div class="suggestion-text">
+                <div class="suggestion-title">Debug my code</div>
+                <div class="suggestion-desc">Find and fix issues fast</div>
+              </div>
+            </button>
+            <button class="suggestion-card" onclick="fillSuggestion(this)" role="listitem">
+              <div class="suggestion-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 3h8v14H6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 7h2M9 10h2M9 13h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </div>
+              <div class="suggestion-text">
+                <div class="suggestion-title">Write unit tests</div>
+                <div class="suggestion-desc">pytest, jest, unittest...</div>
+              </div>
+            </button>
+            <button class="suggestion-card" onclick="fillSuggestion(this)" role="listitem">
+              <div class="suggestion-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 14l4-8 4 5 3-3 3 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="suggestion-text">
+                <div class="suggestion-title">Analyze my project</div>
+                <div class="suggestion-desc">Structure, deps, quality</div>
+              </div>
+            </button>
+            <button class="suggestion-card" onclick="fillSuggestion(this)" role="listitem">
+              <div class="suggestion-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </div>
+              <div class="suggestion-text">
+                <div class="suggestion-title">Create a new project</div>
+                <div class="suggestion-desc">Scaffold from scratch</div>
+              </div>
+            </button>
+            <button class="suggestion-card" onclick="fillSuggestion(this)" role="listitem">
+              <div class="suggestion-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </div>
+              <div class="suggestion-text">
+                <div class="suggestion-title">Explain this error</div>
+                <div class="suggestion-desc">Paste any stack trace</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll-to-bottom FAB -->
+    <button class="scroll-fab hidden" id="scrollFab" onclick="scrollBottom()" aria-label="Scroll to bottom">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <!-- Input area -->
+    <div class="input-area" role="form" aria-label="Message input">
+      <div class="input-wrapper" id="inputWrapper">
+        <div class="input-row">
+          <div class="input-tools">
+            <button class="input-tool-btn" title="Attach file (Ctrl+O)" onclick="attachFile()" aria-label="Attach file">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8l-6 6a4 4 0 01-5.66-5.66l6-6a2.67 2.67 0 013.77 3.77l-6 6a1.33 1.33 0 01-1.88-1.88l5.56-5.57" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+            <button class="input-tool-btn" title="Run command (Ctrl+R)" onclick="quickCommand()" aria-label="Run command">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 5l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 12h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <textarea id="input" rows="1" placeholder="Ask Claude anything..." oninput="autoResize(this);toggleSend()" onkeydown="handleKey(event)" aria-label="Message input"></textarea>
+          <div class="input-right">
+            <span class="char-count" id="charCount"></span>
+            <button class="send-btn disabled" id="sendBtn" onclick="sendMessage()" aria-label="Send message">
+              <svg class="send-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13V3l10 5-10 5z" fill="currentColor"/></svg>
+              <svg class="stop-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" style="display:none"><rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-bottom-row">
+          <div class="input-hint">Claude can make mistakes. Review code carefully.</div>
+          <div class="input-shortcuts">
+            <kbd>Enter</kbd> send <kbd>Shift+Enter</kbd> newline
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ SETTINGS MODAL ═══ -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M6.5 1.5h3l.4 1.8.6.3 1.7-.8 2.1 2.1-.8 1.7.3.6 1.8.4v3l-1.8.4-.3.6.8 1.7-2.1 2.1-1.7-.8-.6.3-.4 1.8h-3l-.4-1.8-.6-.3-1.7.8-2.1-2.1.8-1.7-.3-.6L1.5 9.5v-3l1.8-.4.3-.6-.8-1.7 2.1-2.1 1.7.8.6-.3.4-1.8z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span class="modal-title">Settings</span>
+      </div>
+      <button class="modal-close" onclick="closeSettings()" aria-label="Close settings">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-group">
+        <label class="modal-label" for="systemPromptInput">Custom System Prompt</label>
+        <textarea id="systemPromptInput" class="modal-textarea" rows="8" placeholder="Enter a custom system prompt (leave empty for default)..."></textarea>
+        <div class="modal-hint">Changes apply to new messages in the current chat.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn secondary" onclick="closeSettings()">Cancel</button>
+      <button class="modal-btn primary" onclick="saveSettings()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST CONTAINER ═══ -->
+<div class="toast-container" id="toastContainer" aria-live="assertive"></div>
+
+<!-- Drop overlay -->
+<div class="drop-overlay" id="dropOverlay" aria-hidden="true">
+  <div class="drop-content">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M12 2v14M5 9l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span>Drop file to attach</span>
+  </div>
+</div>
+
+<script src="main.js"></script>
+</body>
+</html>
