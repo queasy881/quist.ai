@@ -26,6 +26,10 @@ before(async () => {
   await pool.query(`CREATE TABLE admin_users (id SERIAL PRIMARY KEY, username VARCHAR(100) UNIQUE, password_hash VARCHAR(255))`);
   await pool.query(`CREATE TABLE download_log (id SERIAL PRIMARY KEY, build_id INTEGER, ip VARCHAR(50))`);
   await pool.query(`INSERT INTO builds (filedata) VALUES ('\\x00'::bytea)`);
+  // a foreign app's `users`/`projects` with an integer id — collides with our uuid schema
+  await pool.query(`CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT)`);
+  await pool.query(`CREATE TABLE projects (id SERIAL PRIMARY KEY, title TEXT)`);
+  await pool.query(`INSERT INTO users (name) VALUES ('old-app-user')`);
 });
 after(async () => { try { await pool.end(); } catch (_) {} try { await pg.stop(); } catch (_) {} try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch (_) {} });
 
@@ -50,6 +54,13 @@ test('migration heals a legacy database', async () => {
   assert.ok(await tableExists('users'));
   assert.ok(await tableExists('nodes'));
   assert.ok(await tableExists('edges'));
+  // the colliding foreign users/projects were replaced with our uuid schema
+  const idType = (await pool.query(`SELECT data_type FROM information_schema.columns WHERE table_name='users' AND column_name='id'`)).rows[0].data_type;
+  assert.equal(idType, 'uuid', 'users.id is our uuid, not the legacy integer');
+  assert.ok(await colExists('projects', 'mcp_disabled'), 'our projects schema replaced the legacy one');
+  // the FK that previously failed now works
+  const u = await pool.query(`INSERT INTO users(email, password_hash) VALUES ('x@y.z','h') RETURNING id`);
+  await pool.query(`INSERT INTO sessions(user_id, token, expires_at) VALUES ($1,'t', now() + interval '1 day')`, [u.rows[0].id]);
 });
 
 test('re-running migrate is a no-op and keeps our builds table', async () => {
