@@ -5,18 +5,22 @@ const path = require('path');
 const { Pool } = require('pg');
 
 const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error('DATABASE_URL is not set');
-  process.exit(1);
+const configured = !!connectionString;
+if (!configured) {
+  // Don't crash the process: bind the HTTP server first (so the platform health
+  // check passes and logs stay visible), and report the misconfiguration via
+  // /healthz. main() surfaces the exact error when migrate() runs.
+  console.error('[db] DATABASE_URL is not set — link a Postgres database. The API will be unavailable until then.');
 }
 
 const pool = new Pool({
-  connectionString,
-  ssl: /localhost|127\.0\.0\.1|postgres\.railway\.internal/.test(connectionString) || process.env.PGSSL === 'disable'
+  connectionString: connectionString || 'postgres://invalid:invalid@127.0.0.1:1/invalid',
+  ssl: !configured || /localhost|127\.0\.0\.1|\.railway\.internal/.test(connectionString) || process.env.PGSSL === 'disable'
     ? false
     : { rejectUnauthorized: false },
   max: Number(process.env.PG_POOL_MAX || 10)
 });
+pool.on('error', e => console.error('[db] pool error:', e.message));
 
 const q = (text, params) => pool.query(text, params);
 

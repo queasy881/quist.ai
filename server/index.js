@@ -26,7 +26,10 @@ app.use(express.json({ limit: process.env.JSON_LIMIT || '64mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 
-app.get('/healthz', (req, res) => res.json({ ok: true, driver: sandbox.getDriver(), pty: sandbox.hasPty() }));
+// Health: ok=true means the process is up (so the platform keeps the deploy).
+// db reflects whether migrations succeeded; the UI/API need db=true to work.
+const health = { db: false, dbError: null };
+app.get('/healthz', (req, res) => res.json({ ok: true, db: health.db, dbError: health.dbError, driver: sandbox.getDriver(), pty: sandbox.hasPty() }));
 
 app.use('/api/auth', auth.router);
 app.use('/api/tokens', auth.tokens);
@@ -56,12 +59,24 @@ app.use((err, req, res, next) => {
 });
 
 async function main() {
-  await migrate();
-  await sandbox.init();
+  // Bind first so the platform health check passes and logs are reachable even
+  // if the database is misconfigured; then migrate and start the workers.
   const server = http.createServer(app);
   terminal.attach(server);
-  await builds.startWorker();
-  server.listen(PORT, () => console.log(`[quist] listening on :${PORT}`));
+  await new Promise(r => server.listen(PORT, r));
+  console.log(`[quist] listening on :${PORT}`);
+
+  try {
+    await migrate();
+    health.db = true;
+    console.log('[quist] database ready');
+  } catch (e) {
+    health.dbError = e.message;
+    console.error('[quist] DATABASE NOT READY — the API will 5xx until this is fixed:\n   ', e.message);
+    console.error('    Link a Postgres service so DATABASE_URL is set, then redeploy.');
+  }
+  await sandbox.init();
+  if (health.db) { try { await builds.startWorker(); } catch (e) { console.error('[quist] build worker:', e.message); } }
   // Docker driver: containers have no network, so built-ins reach us over a unix socket.
   if (sandbox.getDriver() === 'docker' && process.platform !== 'win32') {
     try { fs.unlinkSync(sandbox.CTL_SOCK); } catch (_) { /* none */ }
