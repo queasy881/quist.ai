@@ -148,23 +148,24 @@ const impl = {
     return `reverted all files to ${v.label}`;
   },
   // The one tool that reads the laptop disk: push a file or folder up into the graph.
+  // Files are collected then sent to /files/bulk in batches — one server
+  // transaction and one canvas update per batch, so a 2000-file tree stays smooth.
   async upload_file({ local_path, dest_path, ignore }) {
     if (!local_path) throw new Error('local_path is required');
     const abs = path.resolve(local_path.replace(/^~(?=$|[\\/])/, require('os').homedir()));
     const st = await fsp.stat(abs).catch(() => { throw new Error('no such path on disk: ' + abs); });
-    const skip = new Set(['node_modules', '.git', '.DS_Store', '__pycache__', '.venv', 'venv', 'target', 'dist', 'out', '.next', '.cache'].concat(Array.isArray(ignore) ? ignore : []));
-    const uploaded = [];
+    const skip = new Set(['node_modules', '.git', '.DS_Store', '__pycache__', '.venv', 'venv', 'target', 'dist', 'out', 'build', '.next', '.cache', '.idea', '.vs'].concat(Array.isArray(ignore) ? ignore : []));
+    const collected = []; // { rel, data }
+    const skipped = [];
     let bytes = 0;
-    const one = async (fileAbs, rel) => {
+    const add = async (fileAbs, rel) => {
       const data = await fsp.readFile(fileAbs);
-      if (data.length > MAX_UPLOAD) { uploaded.push(`skipped ${rel} (too large: ${data.length}B)`); return; }
+      if (data.length > MAX_UPLOAD) { skipped.push(`${rel} (too large: ${fmtBytes(data.length)})`); return; }
       bytes += data.length;
-      await call('POST', P() + '/files', { body: { path: rel, content_b64: data.toString('base64'), overwrite: true } });
-      uploaded.push(rel);
+      collected.push({ rel, data });
     };
     if (st.isFile()) {
-      const rel = cleanRel(dest_path || path.basename(abs));
-      await one(abs, rel);
+      await add(abs, cleanRel(dest_path || path.basename(abs)));
     } else {
       const root = cleanRel(dest_path || path.basename(abs));
       const walk = async dir => {
@@ -173,13 +174,28 @@ const impl = {
           const child = path.join(dir, e.name);
           const rel = (root ? root + '/' : '') + path.relative(abs, child).split(path.sep).join('/');
           if (e.isDirectory()) await walk(child);
-          else if (e.isFile()) await one(child, rel);
-          if (uploaded.length >= 5000) throw new Error('refusing to upload more than 5000 files at once');
+          else if (e.isFile()) await add(child, rel);
+          if (collected.length > 20000) throw new Error('refusing to upload more than 20000 files at once');
         }
       };
       await walk(abs);
     }
-    return `uploaded ${uploaded.length} file(s), ${fmtBytes(bytes)} into the graph:\n` + uploaded.slice(0, 200).join('\n') + (uploaded.length > 200 ? `\n… and ${uploaded.length - 200} more` : '');
+    // send in batches, keeping each request body bounded by count and total size
+    let sent = 0;
+    const MAX_BATCH_FILES = 300, MAX_BATCH_BYTES = 24 * 1024 * 1024;
+    let batch = [], batchBytes = 0;
+    const flush = async () => {
+      if (!batch.length) return;
+      await call('POST', P() + '/files/bulk', { body: { files: batch.map(b => ({ path: b.rel, content_b64: b.data.toString('base64') })) } });
+      sent += batch.length; batch = []; batchBytes = 0;
+    };
+    for (const item of collected) {
+      if (batch.length >= MAX_BATCH_FILES || batchBytes + item.data.length > MAX_BATCH_BYTES) await flush();
+      batch.push(item); batchBytes += item.data.length;
+    }
+    await flush();
+    return `uploaded ${sent} file(s), ${fmtBytes(bytes)} into the graph`
+      + (skipped.length ? `\nskipped ${skipped.length}: ${skipped.slice(0, 20).join(', ')}` : '');
   },
   // Pull a file node (or build artifact) back down to the laptop disk.
   async download_file({ path: p, artifact_id, local_path }) {

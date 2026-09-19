@@ -127,36 +127,25 @@ router.delete('/edges/:id', wrap(async (req, res) => {
 }));
 
 // ---------- upload (browser multipart) ----------
+// One bulk insert + one graph event, however many files are dropped.
 router.post('/projects/:id/upload', upload.array('files'), wrap(async (req, res) => {
-  await graph.ownProject(req.user.id, req.params.id);
-  const baseX = num(req.body.x), baseY = num(req.body.y);
-  const parent = req.body.parent || null;
   const paths = req.body.paths ? [].concat(req.body.paths) : [];
-  const created = [];
-  let i = 0;
-  for (const f of req.files || []) {
-    const rel = graph.cleanPath(paths[i] || f.originalname);
-    i++;
-    if (parent || !rel.includes('/')) {
-      // flat drop: file node at the drop point, owned by `parent` if given
-      let parentId = parent;
-      if (rel.includes('/')) { const dirs = rel.split('/'); dirs.pop(); parentId = await graph.ensureFolderPath(req.user.id, req.params.id, dirs.join('/')); }
-      const name = rel.split('/').pop();
-      try {
-        const { node } = await graph.createNode(req.user.id, req.params.id, { kind: 'file', name, blob: f.buffer, parentId,
-          x: baseX !== undefined ? baseX + (i - 1) * 14 : undefined, y: baseY !== undefined ? baseY + (i - 1) * 10 : undefined });
-        created.push(node);
-      } catch (e) {
-        if (e.status !== 409) throw e;
-        const { node } = await graph.writeFileAtPath(req.user.id, req.params.id, rel, { blob: f.buffer });
-        created.push(node);
-      }
-    } else {
-      const { node } = await graph.writeFileAtPath(req.user.id, req.params.id, rel, { blob: f.buffer });
-      created.push(node);
-    }
-  }
-  res.status(201).json({ nodes: created });
+  const files = (req.files || []).map((f, i) => ({ path: graph.cleanPath(paths[i] || f.originalname), blob: f.buffer }));
+  const result = await graph.createNodesBulk(req.user.id, req.params.id, files);
+  res.status(201).json(result);
+}));
+
+// ---------- bulk file import (MCP upload_file, big trees) ----------
+router.post('/projects/:id/files/bulk', wrap(async (req, res) => {
+  const items = Array.isArray(req.body.files) ? req.body.files : [];
+  if (items.length > 5000) throw httpError(413, 'send at most 5000 files per request');
+  const files = items.map(it => ({
+    path: it.path,
+    blob: it.content_b64 != null ? Buffer.from(String(it.content_b64), 'base64') : undefined,
+    content: it.content_b64 != null ? undefined : (it.content == null ? '' : String(it.content))
+  }));
+  const result = await graph.createNodesBulk(req.user.id, req.params.id, files);
+  res.status(201).json(result);
 }));
 
 // ---------- path-based file API (MCP server, shell built-ins) ----------

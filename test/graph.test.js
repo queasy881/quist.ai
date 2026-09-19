@@ -148,6 +148,32 @@ test('versions snapshot and revert restore file contents', async () => {
   assert.equal(extra.status, 404, 'files added after the snapshot are gone after revert');
 });
 
+test('bulk import creates a big tree in one call with folders resolved', async () => {
+  const p = await project(A, 'bulk');
+  const files = [];
+  for (let i = 0; i < 400; i++) files.push({ path: `src/mod${i % 8}/file${i}.ts`, content: `export const x${i} = ${i}; // TODO${i}` });
+  files.push({ path: 'README.md', content: '# bulk' });
+  const t0 = Date.now();
+  const r = await A.post(`/api/projects/${p.id}/files/bulk`, { files });
+  const ms = Date.now() - t0;
+  assert.equal(r.status, 201, JSON.stringify(r.data));
+  assert.equal(r.data.created, 401);
+  assert.equal(r.data.folders, 9); // src + src/mod0..7
+  // graph is consistent: 410 nodes, every file owned, no cycles
+  const g = await A.get(`/api/projects/${p.id}`);
+  assert.equal(g.data.nodes.length, 410);
+  const tree = await A.get(`/api/projects/${p.id}/tree?path=src/mod3`);
+  assert.ok(tree.data.tree.length > 0);
+  // re-importing the same paths updates in place, doesn't duplicate
+  const r2 = await A.post(`/api/projects/${p.id}/files/bulk`, { files: [{ path: 'src/mod3/file3.ts', content: 'updated' }] });
+  assert.equal(r2.data.updated, 1);
+  const read = await A.get(`/api/projects/${p.id}/files?path=src/mod3/file3.ts`);
+  assert.equal(read.data.content, 'updated');
+  const g2 = await A.get(`/api/projects/${p.id}`);
+  assert.equal(g2.data.nodes.length, 410, 'no duplicate nodes on re-import');
+  assert.ok(ms < 8000, 'bulk import of 400 files took ' + ms + 'ms');
+});
+
 test('binary upload is stored and downloadable byte-for-byte', async () => {
   const p = await project(A, 'bin');
   const bytes = Buffer.from([0, 1, 2, 3, 255, 254, 0, 66]);
@@ -155,7 +181,10 @@ test('binary upload is stored and downloadable byte-for-byte', async () => {
   form.append('files', new Blob([bytes]), 'blob.bin');
   const r = await A.postForm(`/api/projects/${p.id}/upload`, form);
   assert.equal(r.status, 201, JSON.stringify(r.data));
-  assert.equal(r.data.nodes[0].binary, true);
-  const dl = await A.get(`/api/nodes/${r.data.nodes[0].id}/download`);
+  assert.equal(r.data.created, 1);
+  const g = await A.get(`/api/projects/${p.id}`);
+  const node = g.data.nodes.find(n => n.name === 'blob.bin');
+  assert.ok(node && node.binary, 'binary node created');
+  const dl = await A.get(`/api/nodes/${node.id}/download`);
   assert.deepEqual(Buffer.from(dl.data), bytes);
 });

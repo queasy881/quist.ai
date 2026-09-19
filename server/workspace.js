@@ -126,6 +126,8 @@ class Workspace {
     if (!this.ready) return;
     if (ev.type === 'graph.replaced') { this.manifest.clear(); await this._materialize(); return; }
     if (ev.origin === 'fs') return; // we caused it; manifest already updated
+    // A bulk import: mirror the whole new tree to disk in one pass, not per file.
+    if (ev.type === 'graph.bulk') { await this._materialize(); return; }
     if (ev.type === 'node.updated' && ev.changed.oldName === undefined && ev.changed.content === undefined && ev.changed.blob === undefined) return; // position only
     const g = await graph.graphFor(this.userId, this.projectId);
     const t = g.tree;

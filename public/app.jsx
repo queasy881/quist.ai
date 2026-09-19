@@ -61,7 +61,7 @@ class Unit extends React.Component {
     this.state = {
       user: null, booted: false,
       project: null, projectList: [], newProjectName: '',
-      nodes: [], edges: [], pan: { x: 0, y: 0 }, contents: {},
+      nodes: [], edges: [], pan: { x: 0, y: 0 }, contents: {}, canvasW: 0, canvasH: 0,
       menu: null, tab: 'editor', openId: null, editingId: null, editName: '',
       linking: null, cursor: { x: 0, y: 0 },
       versions: [], versionLabel: '',
@@ -91,8 +91,21 @@ class Unit extends React.Component {
     window.addEventListener('beforeunload', () => { this.flushContent(); this.savePositions(); });
     this.loadMonaco();
     this.boot();
+    // Track canvas size for viewport culling (only render nodes that are on screen).
+    this.measureCanvas();
+    if (window.ResizeObserver && this.canvasRef.current) {
+      this.ro = new ResizeObserver(() => this.measureCanvas());
+      this.ro.observe(this.canvasRef.current);
+    }
   }
+  measureCanvas = () => {
+    const el = this.canvasRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (Math.abs(r.width - this.state.canvasW) > 1 || Math.abs(r.height - this.state.canvasH) > 1) this.setState({ canvasW: r.width, canvasH: r.height });
+  };
   componentWillUnmount() {
+    if (this.ro) this.ro.disconnect();
     window.removeEventListener('mousemove', this.onMove);
     window.removeEventListener('mouseup', this.onUp);
     window.removeEventListener('click', this.closeMenu);
@@ -248,28 +261,35 @@ class Unit extends React.Component {
   kids(id) { return this.state.edges.filter(e => e.from === id).map(e => this.node(e.to)).filter(Boolean); }
 
   async loadGraph() {
-    const p = this.state.project;
-    if (!p) return;
+    // Use the id tracked synchronously in openProject, not this.state.project,
+    // which may not have flushed yet when loadGraph is awaited right after setState.
+    const pid = this.currentProjectId || (this.state.project && this.state.project.id);
+    if (!pid) return;
     try {
-      const { project, nodes, edges } = await api('GET', '/api/projects/' + p.id);
+      const { project, nodes, edges } = await api('GET', '/api/projects/' + pid);
+      if (this.currentProjectId && this.currentProjectId !== pid) return; // switched away mid-flight
       this.setState(st => {
+        if (st.project && st.project.id !== pid) return {}; // stale response for a closed project
         const dragging = this.drag && this.drag.kind === 'node' ? this.drag.id : null;
+        const localById = new Map(st.nodes.map(m => [m.id, m])); // avoid O(n^2) find
+        let openStillThere = false;
         const merged = nodes.map(n => {
-          const pend = this.pendingPos.get(n.id);
-          const local = st.nodes.find(m => m.id === n.id);
-          if ((pend || dragging === n.id) && local) return { ...n, x: local.x, y: local.y };
+          if (n.id === st.openId) openStillThere = true;
+          const local = localById.get(n.id);
+          if ((this.pendingPos.has(n.id) || dragging === n.id) && local) return { ...n, x: local.x, y: local.y };
           return n;
         });
         const contents = {};
         for (const n of merged) if (st.contents[n.id] !== undefined) contents[n.id] = st.contents[n.id];
-        return { nodes: merged, edges, contents, project: { ...st.project, mcp_disabled: project.mcp_disabled }, openId: merged.some(n => n.id === st.openId) ? st.openId : null,
+        return { nodes: merged, edges, contents, project: { ...st.project, mcp_disabled: project.mcp_disabled }, openId: openStillThere ? st.openId : null,
           mcp: st.mcp.map(t => ({ ...t, on: !(project.mcp_disabled || []).includes(t.name) })) };
       });
     } catch (e) { this.log('sync: ' + e.message, 'err'); }
   }
 
   async openProject(p) {
-    if (this.state.project && this.state.project.id === p.id) return;
+    if (this.currentProjectId === p.id) return;
+    this.currentProjectId = p.id;
     await this.flushContent();
     this.setState({ project: p, nodes: [], edges: [], contents: {}, openId: null, versions: [], builds: [], buildLogs: {}, openBuild: null, connect: null, pan: { x: 0, y: 0 } });
     localStorage.setItem('quist:last', p.id);
@@ -293,9 +313,11 @@ class Unit extends React.Component {
     if (!confirm('Delete project "' + p.name + '" and every node in it? This cannot be undone.')) return;
     try {
       await api('DELETE', '/api/projects/' + p.id);
+      const wasCurrent = this.currentProjectId === p.id;
+      if (wasCurrent) this.currentProjectId = null;
       this.setState(st => ({ projectList: st.projectList.filter(x => x.id !== p.id), menu: null,
         ...(st.project && st.project.id === p.id ? { project: null, nodes: [], edges: [], openId: null } : {}) }));
-      if (this.state.project === null) { history.replaceState(null, '', '/'); localStorage.removeItem('quist:last'); this.disconnectTerminal(); }
+      if (wasCurrent) { history.replaceState(null, '', '/'); localStorage.removeItem('quist:last'); this.disconnectTerminal(); }
     } catch (e) { this.log('delete: ' + e.message, 'err'); }
   }
 
@@ -519,11 +541,22 @@ class Unit extends React.Component {
   };
 
   treeText = () => {
-    const roots = this.state.nodes.filter(n => !this.state.edges.some(e => e.to === n.id));
+    // Build child lists once (O(n)) instead of scanning edges per node (O(n^2)).
+    const byId = new Map(this.state.nodes.map(n => [n.id, n]));
+    const owned = new Set();
+    const childrenOf = new Map();
+    for (const e of this.state.edges) {
+      if (!byId.has(e.from) || !byId.has(e.to)) continue;
+      owned.add(e.to);
+      (childrenOf.get(e.from) || childrenOf.set(e.from, []).get(e.from)).push(byId.get(e.to));
+    }
+    const cmp = (a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'folder' ? -1 : 1);
+    for (const arr of childrenOf.values()) arr.sort(cmp);
+    const roots = this.state.nodes.filter(n => !owned.has(n.id)).sort(cmp);
     if (!roots.length) return '(no nodes yet)';
     const walk = (n, pre, last, top) => {
       let out = pre + (top ? '' : (last ? '└─ ' : '├─ ')) + n.name + (n.kind === 'folder' ? '/' : '');
-      const ks = this.kids(n.id);
+      const ks = childrenOf.get(n.id) || [];
       ks.forEach((k, i) => { out += '\n' + walk(k, pre + (top ? '' : (last ? '   ' : '│  ')), i === ks.length - 1, false); });
       return out;
     };
@@ -646,9 +679,27 @@ class Unit extends React.Component {
     };
     const arrow = (x, y) => `M ${x - 9} ${y - 4.5} L ${x - 2.5} ${y} L ${x - 9} ${y + 4.5}`;
 
+    // Viewport culling: only build/render what is on (or near) screen. Keeps the
+    // canvas smooth with thousands of nodes — we draw ~50, not ~2000.
+    const PAD = 500;
+    const vx0 = -S.pan.x - PAD, vy0 = -S.pan.y - PAD;
+    const vx1 = -S.pan.x + (S.canvasW || 1200) + PAD, vy1 = -S.pan.y + (S.canvasH || 800) + PAD;
+    const onScreen = n => n.x + NW >= vx0 && n.x <= vx1 && n.y + NH >= vy0 && n.y <= vy1;
+    const nodeById = new Map(S.nodes.map(n => [n.id, n]));
+    const dragId = this.drag && this.drag.kind === 'node' ? this.drag.id : null;
+    const forceShow = id => id === S.openId || id === S.editingId || id === dragId;
+    // Precompute ownership once per render (was O(nodes*edges) inside the loop).
+    const ownedSet = new Set(S.edges.map(e => e.to));
+    const childCount = new Map();
+    for (const e of S.edges) childCount.set(e.from, (childCount.get(e.from) || 0) + 1);
+
     const edges = S.edges.map((e, i) => {
-      const a = this.node(e.from), b = this.node(e.to);
+      const a = nodeById.get(e.from), b = nodeById.get(e.to);
       if (!a || !b) return null;
+      // skip edges whose bounding box is fully off-screen
+      const minx = Math.min(a.x, b.x), maxx = Math.max(a.x + NW, b.x + NW);
+      const miny = Math.min(a.y, b.y), maxy = Math.max(a.y + NH, b.y + NH);
+      if (maxx < vx0 || minx > vx1 || maxy < vy0 || miny > vy1) return null;
       const p1 = pos(a), p2 = pos(b);
       return { key: e.from + '>' + e.to + i, d: curve(p1.ox, p1.oy, p2.ix, p2.iy), head: arrow(p2.ix, p2.iy), color: b.kind === 'folder' ? '#D97757' : '#5A5A5A' };
     }).filter(Boolean);
@@ -730,7 +781,7 @@ class Unit extends React.Component {
                 {p.name.slice(0, 2).toLowerCase()}
               </div>
             ))}
-            <div className="hv-add" title="New project" onClick={() => { this.flushContent(); this.disconnectTerminal(); this.setState({ project: null, newProjectName: '', nodes: [], edges: [], openId: null, runtime: 'offline' }); history.replaceState(null, '', '/'); }}
+            <div className="hv-add" title="New project" onClick={() => { this.flushContent(); this.disconnectTerminal(); this.currentProjectId = null; this.setState({ project: null, newProjectName: '', nodes: [], edges: [], openId: null, runtime: 'offline' }); history.replaceState(null, '', '/'); }}
                  style={s('width:38px; height:38px; flex:0 0 38px; border-radius:999px; background:#1B1B1B; color:#8A8A8A; display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; transition:all .18s cubic-bezier(.22,1,.36,1);')}>+</div>
           </div>
 
@@ -749,8 +800,10 @@ class Unit extends React.Component {
               </svg>
 
               {S.nodes.map((n, idx) => {
+                if (!onScreen(n) && !forceShow(n.id)) return null;
                 const open = S.openId === n.id;
-                const owned = S.edges.some(e => e.to === n.id);
+                const owned = ownedSet.has(n.id);
+                const kidCount = childCount.get(n.id) || 0;
                 const bd = BADGE[n.lang] || BADGE.plaintext;
                 return (
                   <div key={n.id} style={s(`position:absolute; left:${n.x}px; top:${n.y}px; width:${NW}px; height:${NH}px; z-index:${open ? 60 : 10 + idx};`)}>
@@ -789,7 +842,7 @@ class Unit extends React.Component {
                           <React.Fragment>
                             <div style={s("font-family:'JetBrains Mono', monospace; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;")}>{n.name}</div>
                             <div style={s('font-size:10px; color:#6E6E6E; margin-top:3px; letter-spacing:.1em; text-transform:uppercase;')}>
-                              {n.kind === 'folder' ? this.kids(n.id).length + ' owned' : (n.binary ? fmtBytes(n.size) : (n.lang || 'text'))}
+                              {n.kind === 'folder' ? kidCount + ' owned' : (n.binary ? fmtBytes(n.size) : (n.lang || 'text'))}
                             </div>
                           </React.Fragment>
                         )}
@@ -798,7 +851,7 @@ class Unit extends React.Component {
 
                     <div title="input" onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }} onMouseUp={e => this.endLink(e, n.id)} style={s(portS('left', owned))}></div>
                     {n.kind === 'folder' &&
-                      <div title="output" onMouseDown={e => this.startLink(e, n.id)} onMouseUp={e => this.endLink(e, n.id)} style={s(portS('right', this.kids(n.id).length > 0))}></div>}
+                      <div title="output" onMouseDown={e => this.startLink(e, n.id)} onMouseUp={e => this.endLink(e, n.id)} style={s(portS('right', kidCount > 0))}></div>}
                   </div>
                 );
               })}
@@ -975,7 +1028,7 @@ class Unit extends React.Component {
                 <div style={s(paneBase + (S.tab === 'tree' ? '' : 'display:none;'))}>
                   <div style={s('padding:20px; overflow:auto;')}>
                     <div style={s("font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#D97757; margin-bottom:16px;")}>resolved tree</div>
-                    <pre style={s("font-family:'JetBrains Mono', monospace; font-size:12.5px; line-height:1.8; color:#B4B4B4; margin:0; white-space:pre;")}>{this.treeText()}</pre>
+                    <pre style={s("font-family:'JetBrains Mono', monospace; font-size:12.5px; line-height:1.8; color:#B4B4B4; margin:0; white-space:pre;")}>{S.tab === 'tree' ? this.treeText() : ''}</pre>
                   </div>
                 </div>
 

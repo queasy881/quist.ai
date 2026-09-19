@@ -2,6 +2,7 @@
 // The graph: nodes (files/folders) + edges (folder owns node). Everything the
 // canvas, the shell workspace, the MCP tools and versions do funnels through
 // here so the rules are enforced once, server-side, and always user-scoped.
+const crypto = require('crypto');
 const EventEmitter = require('events');
 const { q, tx, pool } = require('./db');
 const { httpError } = require('./errors');
@@ -285,6 +286,132 @@ async function unlinkNode(userId, nodeId, opts = {}) {
   return deleteEdge(userId, r.rows[0].id, opts);
 }
 
+// ---------- bulk import (uploads of hundreds/thousands of files) ----------
+// One transaction, multi-row inserts, a tidy grid layout, and a SINGLE
+// 'graph.bulk' event — instead of N round-trips and N events that make the
+// client reload and re-render the whole graph N times.
+// files: [{ path, content?|blob? }]. Missing folders are created; existing
+// files are updated in place. Triggers stay on (the tree we build is acyclic).
+async function createNodesBulk(userId, projectId, files, opts = {}) {
+  if (!Array.isArray(files) || !files.length) return { created: 0, updated: 0, folders: 0 };
+  await ownProject(userId, projectId);
+
+  // Normalise + de-dupe incoming paths; prepare content (may hit R2) outside the tx.
+  const incoming = new Map(); // cleanPath -> { blob? , content? , size }
+  for (const f of files) {
+    const p = cleanPath(f.path);
+    if (!p) continue;
+    const name = p.split('/').pop();
+    if (p.split('/').some(seg => !validName(seg))) throw httpError(400, 'invalid path: ' + f.path);
+    void name;
+    const stored = await storage.prepare(f.blob != null ? f.blob : (f.content == null ? '' : f.content));
+    incoming.set(p, stored);
+  }
+
+  const out = await tx(async c => {
+    await ownProject(userId, projectId, c);
+    const g = await loadGraph(projectId, c);
+    const tree = resolveTree(g.nodes, g.edges);
+    const idOfPath = new Map();          // path -> node id (existing or newly minted)
+    for (const [id, p] of tree.pathOf) idOfPath.set(p, id);
+    const kindOfPath = new Map();
+    for (const n of g.nodes) kindOfPath.set(tree.pathOf.get(n.id), n.kind);
+
+    // every folder path implied by the incoming files
+    const folderSet = new Set();
+    for (const p of incoming.keys()) {
+      const segs = p.split('/'); segs.pop();
+      let cur = '';
+      for (const s of segs) { cur = cur ? cur + '/' + s : s; folderSet.add(cur); }
+    }
+    for (const fp of folderSet) if (kindOfPath.get(fp) === 'file') throw httpError(409, fp + ' exists as a file');
+
+    // layout: place the new subtree below anything already there
+    let baseRow = 0;
+    for (const n of g.nodes) baseRow = Math.max(baseRow, Math.round((n.y) / (NH + 16)) + 1);
+
+    const newNodes = [];   // {id, kind, name, x, y, content, blob, lang, size}
+    const newEdges = [];   // {from, to}
+    const updates = [];    // {id, content, blob, size} for existing files
+    let rowCounter = baseRow;
+
+    // create folders first, parents before children (sorted paths guarantee it)
+    const folders = [...folderSet].sort();
+    for (const fp of folders) {
+      if (idOfPath.has(fp)) continue;
+      const segs = fp.split('/');
+      const name = segs.pop();
+      const parentPath = segs.join('/');
+      const parentId = parentPath ? idOfPath.get(parentPath) : null;
+      const id = crypto.randomUUID();
+      const depth = fp.split('/').length - 1;
+      newNodes.push({ id, kind: 'folder', name, x: 120 + depth * (NW + 60), y: 120 + (rowCounter++) * (NH + 16), content: null, blob: null, lang: null, size: 0 });
+      idOfPath.set(fp, id); kindOfPath.set(fp, 'folder');
+      if (parentId) newEdges.push({ from: parentId, to: id });
+    }
+
+    // then files
+    for (const [p, stored] of incoming) {
+      const segs = p.split('/');
+      const name = segs.pop();
+      const parentPath = segs.join('/');
+      const parentId = parentPath ? idOfPath.get(parentPath) : null;
+      const existingId = idOfPath.get(p);
+      if (existingId && kindOfPath.get(p) === 'file') {
+        updates.push({ id: existingId, content: stored.content, blob: stored.blob, size: stored.size });
+        continue;
+      }
+      if (existingId) throw httpError(409, p + ' exists as a folder');
+      const id = crypto.randomUUID();
+      const depth = p.split('/').length - 1;
+      newNodes.push({ id, kind: 'file', name, x: 120 + depth * (NW + 60), y: 120 + (rowCounter++) * (NH + 16), content: stored.content, blob: stored.blob, lang: langFor(name), size: stored.size });
+      idOfPath.set(p, id); kindOfPath.set(p, 'file');
+      if (parentId) newEdges.push({ from: parentId, to: id });
+    }
+
+    // multi-row inserts (chunked); a single event follows the whole import
+    await bulkInsertNodes(c, projectId, newNodes);
+    await bulkInsertEdges(c, projectId, newEdges);
+    for (const u of updates) {
+      await c.query('UPDATE nodes SET content=$2, blob=$3, size=$4, updated_at=now() WHERE id=$1', [u.id, u.content, u.blob, u.size]);
+    }
+    await c.query('UPDATE projects SET updated_at = now() WHERE id = $1', [projectId]);
+    return { created: newNodes.filter(n => n.kind === 'file').length, folders: newNodes.filter(n => n.kind === 'folder').length, updated: updates.length };
+  });
+
+  emit(projectId, 'graph.bulk', { added: out.created + out.folders, updated: out.updated }, opts.origin);
+  return out;
+}
+
+async function bulkInsertNodes(c, projectId, rows) {
+  const CHUNK = 200;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const slice = rows.slice(i, i + CHUNK);
+    const tuples = [], params = [];
+    slice.forEach((n, j) => {
+      const b = j * 10;
+      tuples.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10})`);
+      params.push(n.id, projectId, n.kind, n.name, n.x, n.y, n.content, n.blob, n.lang, n.size);
+    });
+    if (tuples.length) await c.query(
+      `INSERT INTO nodes(id, project_id, kind, name, x, y, content, blob, lang, size) VALUES ${tuples.join(',')}`, params);
+  }
+}
+
+async function bulkInsertEdges(c, projectId, rows) {
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const slice = rows.slice(i, i + CHUNK);
+    const tuples = [], params = [];
+    slice.forEach((e, j) => {
+      const b = j * 3;
+      tuples.push(`($${b + 1},$${b + 2},$${b + 3})`);
+      params.push(projectId, e.from, e.to);
+    });
+    if (tuples.length) await c.query(`INSERT INTO edges(project_id, from_node, to_node) VALUES ${tuples.join(',')}`, params);
+  }
+}
+
 // ---------- path based (used by MCP, uploads, the shell workspace) ----------
 
 async function graphFor(userId, projectId) {
@@ -421,6 +548,6 @@ async function search(userId, projectId, query, opts = {}) {
 module.exports = {
   NW, NH, LANGS, langFor, validName, cleanPath, events,
   ownProject, ownNode, publicNode, loadGraph, resolveTree, treeText, treeJson, freeSpot, placeNear,
-  createNode, updateNode, deleteNode, createEdge, deleteEdge, unlinkNode,
+  createNode, updateNode, deleteNode, createEdge, deleteEdge, unlinkNode, createNodesBulk,
   graphFor, nodeAtPath, ensureFolderPath, writeFileAtPath, createFolderAtPath, movePath, deletePath, search
 };
