@@ -73,7 +73,9 @@ class Unit extends React.Component {
     this.editorRef = React.createRef();
     this.termRef = React.createRef();
     this.fileInputRef = React.createRef();
+    this.worldRef = React.createRef();   // the pan/transform container (direct-DOM pan)
     this.drag = null;
+    this._livePan = null;                // live pan during a drag, committed to state on threshold/mouseup
     this.dirtyContent = new Set();   // node ids with unsaved editor text
     this.pendingPos = new Map();     // node id -> {x,y} waiting for the batched PATCH
     this.flushPositions = debounce(() => this.savePositions(), 300);
@@ -431,7 +433,13 @@ class Unit extends React.Component {
     if (this.state.linking) { this.setState({ cursor: this.worldPt(e) }); return; }
     if (!this.drag) return;
     if (this.drag.kind === 'pan') {
-      this.setState({ pan: { x: this.drag.ox + e.clientX - this.drag.sx, y: this.drag.oy + e.clientY - this.drag.sy } });
+      // Pan via direct DOM writes (no React) so it's smooth with thousands of
+      // nodes; commit to state only when we've moved far enough to re-cull.
+      const x = this.drag.ox + e.clientX - this.drag.sx, y = this.drag.oy + e.clientY - this.drag.sy;
+      this._livePan = { x, y };
+      if (this.worldRef.current) this.worldRef.current.style.transform = `translate(${x}px, ${y}px)`;
+      if (this.canvasRef.current) this.canvasRef.current.style.backgroundPosition = `${x % 22}px ${y % 22}px`;
+      if (Math.abs(x - this.state.pan.x) > 240 || Math.abs(y - this.state.pan.y) > 240) this.setState({ pan: { x, y } });
     } else {
       const dx = e.clientX - this.drag.sx, dy = e.clientY - this.drag.sy, id = this.drag.id;
       const x = this.drag.ox + dx, y = this.drag.oy + dy;
@@ -440,6 +448,7 @@ class Unit extends React.Component {
     }
   };
   onUp = () => {
+    if (this.drag && this.drag.kind === 'pan' && this._livePan) { this.setState({ pan: this._livePan }); this._livePan = null; }
     if (this.drag && this.drag.kind === 'node') this.flushPositions();
     this.drag = null;
     if (this.state.linking) this.setState({ linking: null });
@@ -660,17 +669,49 @@ class Unit extends React.Component {
     files.forEach(f => { fd.append('files', f, f.name); fd.append('paths', f.webkitRelativePath || f.name); });
     fd.append('x', Math.round(base.x - NW / 2)); fd.append('y', Math.round(base.y - NH / 2));
     try {
-      const { nodes } = await api('POST', '/api/projects/' + this.state.project.id + '/upload', fd);
+      const r = await api('POST', '/api/projects/' + this.state.project.id + '/upload', fd);
       await this.loadGraph();
-      nodes.forEach(n => this.log('uploaded ' + n.name, 'ok'));
-      const first = nodes.find(n => !n.binary);
-      if (first) this.openFile(first.id);
+      this.log('uploaded ' + r.created + ' file(s)' + (r.folders ? ' (' + r.folders + ' folders)' : ''), 'ok');
     } catch (err) { this.log('upload: ' + err.message, 'err'); }
   };
 
   /* ---------- render ---------- */
-  render() {
-    const S = this.state;
+  computeMenuItems(S) {
+    const menuItems = [];
+    if (!S.menu) return menuItems;
+    if (S.menu.project) {
+      const p = S.menu.project;
+      menuItems.push({ glyph: '▸', label: 'Open project', action: () => { this.setState({ menu: null }); this.openProject(p); } });
+      menuItems.push({ glyph: '×', label: 'Delete project', action: () => this.deleteProject(p) });
+    } else if (S.menu.target) {
+      const t = this.node(S.menu.target);
+      if (t && t.kind === 'file') menuItems.push({ glyph: '▸', label: 'Open in editor', action: () => { this.setState({ menu: null }); this.openFile(t.id); } });
+      if (t && t.kind === 'file') menuItems.push({ glyph: '↓', label: 'Download', action: () => { this.setState({ menu: null }); window.open('/api/nodes/' + t.id + '/download', '_blank'); } });
+      menuItems.push({ glyph: '✎', label: 'Rename', action: () => this.setState({ editingId: S.menu.target, editName: t ? t.name : '', menu: null }) });
+      if (S.edges.some(e => e.to === S.menu.target)) menuItems.push({ glyph: '⌫', label: 'Unlink from owner', action: () => this.unlink(S.menu.target) });
+      menuItems.push({ glyph: '×', label: 'Delete node', action: () => this.del(S.menu.target) });
+    } else {
+      menuItems.push({ glyph: '+', label: 'Create file', action: () => this.create('file', S.menu.world) });
+      menuItems.push({ glyph: '+', label: 'Create folder', action: () => this.create('folder', S.menu.world) });
+      menuItems.push({ glyph: '↑', label: 'Upload from disk', action: () => { this.dropAt = S.menu.world; this.setState({ menu: null }); this.fileInputRef.current && this.fileInputRef.current.click(); } });
+      menuItems.push({ glyph: '⤢', label: 'Reset view', action: () => { this._livePan = null; this.setState({ pan: { x: 0, y: 0 }, menu: null }); } });
+    }
+    return menuItems;
+  }
+
+  // The canvas subtree is expensive (culling, thousands of nodes) but only
+  // depends on graph/pan/menu state — not the editor, terminal or build panes.
+  // Memoize it so a keystroke or a stream of log lines never re-renders it.
+  memoCanvas(S) {
+    const sig = [S.nodes, S.edges, S.pan, S.canvasW, S.canvasH, S.openId, S.editingId, S.editName,
+      S.linking, S.linking ? S.cursor : null, S.menu, S.project, S.booted, S.newProjectName, this.drag];
+    if (this._csig && this._csig.length === sig.length && this._csig.every((v, i) => v === sig[i])) return this._cel;
+    this._csig = sig;
+    this._cel = this.buildCanvas(S);
+    return this._cel;
+  }
+
+  buildCanvas(S) {
     const pos = n => ({ ix: n.x, iy: n.y + NH / 2, ox: n.x + NW, oy: n.y + NH / 2 });
     const curve = (x1, y1, x2, y2) => {
       const back = x2 < x1 + 60;
@@ -678,9 +719,6 @@ class Unit extends React.Component {
       return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
     };
     const arrow = (x, y) => `M ${x - 9} ${y - 4.5} L ${x - 2.5} ${y} L ${x - 9} ${y + 4.5}`;
-
-    // Viewport culling: only build/render what is on (or near) screen. Keeps the
-    // canvas smooth with thousands of nodes — we draw ~50, not ~2000.
     const PAD = 500;
     const vx0 = -S.pan.x - PAD, vy0 = -S.pan.y - PAD;
     const vx1 = -S.pan.x + (S.canvasW || 1200) + PAD, vy1 = -S.pan.y + (S.canvasH || 800) + PAD;
@@ -688,7 +726,6 @@ class Unit extends React.Component {
     const nodeById = new Map(S.nodes.map(n => [n.id, n]));
     const dragId = this.drag && this.drag.kind === 'node' ? this.drag.id : null;
     const forceShow = id => id === S.openId || id === S.editingId || id === dragId;
-    // Precompute ownership once per render (was O(nodes*edges) inside the loop).
     const ownedSet = new Set(S.edges.map(e => e.to));
     const childCount = new Map();
     for (const e of S.edges) childCount.set(e.from, (childCount.get(e.from) || 0) + 1);
@@ -696,7 +733,6 @@ class Unit extends React.Component {
     const edges = S.edges.map((e, i) => {
       const a = nodeById.get(e.from), b = nodeById.get(e.to);
       if (!a || !b) return null;
-      // skip edges whose bounding box is fully off-screen
       const minx = Math.min(a.x, b.x), maxx = Math.max(a.x + NW, b.x + NW);
       const miny = Math.min(a.y, b.y), maxy = Math.max(a.y + NH, b.y + NH);
       if (maxx < vx0 || minx > vx1 || maxy < vy0 || miny > vy1) return null;
@@ -705,90 +741,16 @@ class Unit extends React.Component {
     }).filter(Boolean);
 
     let dragPath = null;
-    if (S.linking) {
-      const a = this.node(S.linking.from);
-      if (a) { const p = pos(a); dragPath = curve(p.ox, p.oy, S.cursor.x, S.cursor.y); }
-    }
+    if (S.linking) { const a = nodeById.get(S.linking.from); if (a) { const p = pos(a); dragPath = curve(p.ox, p.oy, S.cursor.x, S.cursor.y); } }
 
     const portS = (side, lit) => `position:absolute; top:${NH / 2 - 6}px; ${side}:-6px; width:12px; height:12px; border-radius:999px; background:${lit ? '#D97757' : '#1B1B1B'}; box-shadow:0 0 0 2px #0F0F0F, 0 0 0 3.5px ${lit ? '#D97757' : '#3A3A3A'}; cursor:crosshair; z-index:4;`;
-
-    const tabStyle = k => `padding:8px 17px; font-size:12.5px; border-radius:999px; cursor:pointer; background:${S.tab === k ? '#D97757' : '#1B1B1B'}; color:${S.tab === k ? '#141414' : '#9A9A9A'}; font-weight:${S.tab === k ? 600 : 400};`;
-    const paneBase = 'position:absolute; inset:0 10px 10px 10px; background:#161616; border-radius:22px; display:flex; flex-direction:column; overflow:hidden;';
-    const inputS = "flex:1; min-width:0; background:#0F0F0F; border:1.5px solid #282828; border-radius:999px; color:#EDEDED; font-family:'JetBrains Mono', monospace; font-size:12px; padding:9px 15px;";
-    const pillS = "font-family:'JetBrains Mono', monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:#6E6E6E; background:#161616; border-radius:999px; padding:5px 11px;";
-    const openNode = this.node(S.openId);
-    const projectName = S.project ? S.project.name : '';
-
-    const menuItems = [];
-    if (S.menu) {
-      if (S.menu.project) {
-        const p = S.menu.project;
-        menuItems.push({ glyph: '▸', label: 'Open project', action: () => { this.setState({ menu: null }); this.openProject(p); } });
-        menuItems.push({ glyph: '×', label: 'Delete project', action: () => this.deleteProject(p) });
-      } else if (S.menu.target) {
-        const t = this.node(S.menu.target);
-        if (t && t.kind === 'file') menuItems.push({ glyph: '▸', label: 'Open in editor', action: () => { this.setState({ menu: null }); this.openFile(t.id); } });
-        if (t && t.kind === 'file') menuItems.push({ glyph: '↓', label: 'Download', action: () => { this.setState({ menu: null }); window.open('/api/nodes/' + t.id + '/download', '_blank'); } });
-        menuItems.push({ glyph: '✎', label: 'Rename', action: () => this.setState({ editingId: S.menu.target, editName: t ? t.name : '', menu: null }) });
-        if (S.edges.some(e => e.to === S.menu.target)) menuItems.push({ glyph: '⌫', label: 'Unlink from owner', action: () => this.unlink(S.menu.target) });
-        menuItems.push({ glyph: '×', label: 'Delete node', action: () => this.del(S.menu.target) });
-      } else {
-        menuItems.push({ glyph: '+', label: 'Create file', action: () => this.create('file', S.menu.world) });
-        menuItems.push({ glyph: '+', label: 'Create folder', action: () => this.create('folder', S.menu.world) });
-        menuItems.push({ glyph: '↑', label: 'Upload from disk', action: () => { this.dropAt = S.menu.world; this.setState({ menu: null }); this.fileInputRef.current && this.fileInputRef.current.click(); } });
-        menuItems.push({ glyph: '⤢', label: 'Reset view', action: () => this.setState({ pan: { x: 0, y: 0 }, menu: null }) });
-      }
-    }
-
-    const statusColor = st => ({ succeeded: '#D97757', failed: '#C25B4A', cancelled: '#6E6E6E', running: '#EFC7B2', queued: '#3A3A3A' }[st] || '#3A3A3A');
+    const menuItems = this.computeMenuItems(S);
 
     return (
-      <div style={s('height:100vh; display:flex; flex-direction:column; background:#0B0B0B; color:#EDEDED; font-family:Figtree, system-ui, sans-serif; overflow:hidden; user-select:none;')}>
-
-        <div style={s('height:56px; flex:0 0 56px; display:flex; align-items:center; gap:16px; padding:0 18px; background:#111111;')}>
-          <div style={s('display:flex; align-items:center; gap:10px;')}>
-            <div style={s('width:26px; height:26px; border-radius:999px; background:#D97757; display:flex; align-items:center; justify-content:center;')}>
-              <div style={s('width:9px; height:9px; border-radius:999px; background:#111111;')}></div>
-            </div>
-            <span style={s("font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:#B4B4B4;")}>cloud coding unit</span>
-          </div>
-          <div style={s('width:1px; height:18px; background:#282828; border-radius:999px;')}></div>
-          <div style={s('display:flex; align-items:center; gap:8px; min-width:0;')}>
-            <span style={s('font-size:13px; color:#7C7C7C;')}>project</span>
-            <span style={s('font-size:13.5px; font-weight:600;')}>{projectName || 'none'}</span>
-          </div>
-          <div style={s('flex:1;')}></div>
-          <div style={s("display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:#8A8A8A;")}>
-            <span style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px;')}>
-              <span style={s('width:6px; height:6px; border-radius:999px; background:#D97757;')}></span>{S.nodes.length} nodes
-            </span>
-            <span style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px;')}>{S.edges.length} links</span>
-            <span style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px;')}>
-              <span style={s(`width:6px; height:6px; border-radius:999px; background:${S.runtime === 'ready' ? '#D97757' : '#3A3A3A'};`)}></span>runtime {S.runtime}
-            </span>
-            {S.user && <span className="hv-text" title="sign out" onClick={() => this.signOut()}
-                  style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px; cursor:pointer;')}>{S.user.email} · sign out</span>}
-          </div>
-        </div>
-
-        <div style={s('flex:1; display:flex; min-height:0; padding:10px; gap:10px;')}>
-
-          <div style={s('width:60px; flex:0 0 60px; background:#111111; border-radius:24px; display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:9px; overflow:auto;')}>
-            {S.projectList.map(p => (
-              <div key={p.id} title={p.name} onClick={() => this.openProject(p)}
-                   onContextMenu={e => { e.preventDefault(); e.stopPropagation(); this.setState({ menu: { x: e.clientX - 10, y: e.clientY - 66, project: p } }); }}
-                   style={s(`width:38px; height:38px; flex:0 0 38px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:11px; cursor:pointer; background:${S.project && p.id === S.project.id ? '#D97757' : '#1B1B1B'}; color:${S.project && p.id === S.project.id ? '#141414' : '#9A9A9A'};`)}>
-                {p.name.slice(0, 2).toLowerCase()}
-              </div>
-            ))}
-            <div className="hv-add" title="New project" onClick={() => { this.flushContent(); this.disconnectTerminal(); this.currentProjectId = null; this.setState({ project: null, newProjectName: '', nodes: [], edges: [], openId: null, runtime: 'offline' }); history.replaceState(null, '', '/'); }}
-                 style={s('width:38px; height:38px; flex:0 0 38px; border-radius:999px; background:#1B1B1B; color:#8A8A8A; display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; transition:all .18s cubic-bezier(.22,1,.36,1);')}>+</div>
-          </div>
-
           <div ref={this.canvasRef} onContextMenu={this.onCanvasContext} onMouseDown={this.onCanvasMouseDown}
                style={s('flex:1; position:relative; min-width:0; overflow:hidden; border-radius:26px; background-color:#0F0F0F; background-image:radial-gradient(#2A2A2A 1px, transparent 1px); background-size:22px 22px; background-position:' + (S.pan.x % 22) + 'px ' + (S.pan.y % 22) + 'px;')}>
 
-            <div style={s(`position:absolute; left:0; top:0; transform:translate(${S.pan.x}px, ${S.pan.y}px);`)}>
+            <div ref={this.worldRef} style={s(`position:absolute; left:0; top:0; transform:translate(${S.pan.x}px, ${S.pan.y}px);`)}>
               <svg width="10" height="10" style={s('position:absolute; left:0; top:0; overflow:visible; pointer-events:none;')}>
                 {edges.map(e => (
                   <g key={e.key}>
@@ -896,6 +858,65 @@ class Unit extends React.Component {
                 <div style={s('height:7px;')}></div>
               </div>}
           </div>
+    );
+  }
+
+  /* ---------- render ---------- */
+  render() {
+    const S = this.state;
+    const tabStyle = k => `padding:8px 17px; font-size:12.5px; border-radius:999px; cursor:pointer; background:${S.tab === k ? '#D97757' : '#1B1B1B'}; color:${S.tab === k ? '#141414' : '#9A9A9A'}; font-weight:${S.tab === k ? 600 : 400};`;
+    const paneBase = 'position:absolute; inset:0 10px 10px 10px; background:#161616; border-radius:22px; display:flex; flex-direction:column; overflow:hidden;';
+    const inputS = "flex:1; min-width:0; background:#0F0F0F; border:1.5px solid #282828; border-radius:999px; color:#EDEDED; font-family:'JetBrains Mono', monospace; font-size:12px; padding:9px 15px;";
+    const pillS = "font-family:'JetBrains Mono', monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:#6E6E6E; background:#161616; border-radius:999px; padding:5px 11px;";
+    const openNode = this.node(S.openId);
+    const projectName = S.project ? S.project.name : '';
+    const menuItems = this.computeMenuItems(S);
+    const statusColor = st => ({ succeeded: '#D97757', failed: '#C25B4A', cancelled: '#6E6E6E', running: '#EFC7B2', queued: '#3A3A3A' }[st] || '#3A3A3A');
+
+    return (
+      <div style={s('height:100vh; display:flex; flex-direction:column; background:#0B0B0B; color:#EDEDED; font-family:Figtree, system-ui, sans-serif; overflow:hidden; user-select:none;')}>
+
+        <div style={s('height:56px; flex:0 0 56px; display:flex; align-items:center; gap:16px; padding:0 18px; background:#111111;')}>
+          <div style={s('display:flex; align-items:center; gap:10px;')}>
+            <div style={s('width:26px; height:26px; border-radius:999px; background:#D97757; display:flex; align-items:center; justify-content:center;')}>
+              <div style={s('width:9px; height:9px; border-radius:999px; background:#111111;')}></div>
+            </div>
+            <span style={s("font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:#B4B4B4;")}>cloud coding unit</span>
+          </div>
+          <div style={s('width:1px; height:18px; background:#282828; border-radius:999px;')}></div>
+          <div style={s('display:flex; align-items:center; gap:8px; min-width:0;')}>
+            <span style={s('font-size:13px; color:#7C7C7C;')}>project</span>
+            <span style={s('font-size:13.5px; font-weight:600;')}>{projectName || 'none'}</span>
+          </div>
+          <div style={s('flex:1;')}></div>
+          <div style={s("display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:#8A8A8A;")}>
+            <span style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px;')}>
+              <span style={s('width:6px; height:6px; border-radius:999px; background:#D97757;')}></span>{S.nodes.length} nodes
+            </span>
+            <span style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px;')}>{S.edges.length} links</span>
+            <span style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px;')}>
+              <span style={s(`width:6px; height:6px; border-radius:999px; background:${S.runtime === 'ready' ? '#D97757' : '#3A3A3A'};`)}></span>runtime {S.runtime}
+            </span>
+            {S.user && <span className="hv-text" title="sign out" onClick={() => this.signOut()}
+                  style={s('display:inline-flex; align-items:center; gap:7px; background:#1A1A1A; border-radius:999px; padding:6px 13px; cursor:pointer;')}>{S.user.email} · sign out</span>}
+          </div>
+        </div>
+
+        <div style={s('flex:1; display:flex; min-height:0; padding:10px; gap:10px;')}>
+
+          <div style={s('width:60px; flex:0 0 60px; background:#111111; border-radius:24px; display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:9px; overflow:auto;')}>
+            {S.projectList.map(p => (
+              <div key={p.id} title={p.name} onClick={() => this.openProject(p)}
+                   onContextMenu={e => { e.preventDefault(); e.stopPropagation(); this.setState({ menu: { x: e.clientX - 10, y: e.clientY - 66, project: p } }); }}
+                   style={s(`width:38px; height:38px; flex:0 0 38px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:11px; cursor:pointer; background:${S.project && p.id === S.project.id ? '#D97757' : '#1B1B1B'}; color:${S.project && p.id === S.project.id ? '#141414' : '#9A9A9A'};`)}>
+                {p.name.slice(0, 2).toLowerCase()}
+              </div>
+            ))}
+            <div className="hv-add" title="New project" onClick={() => { this.flushContent(); this.disconnectTerminal(); this.currentProjectId = null; this.setState({ project: null, newProjectName: '', nodes: [], edges: [], openId: null, runtime: 'offline' }); history.replaceState(null, '', '/'); }}
+                 style={s('width:38px; height:38px; flex:0 0 38px; border-radius:999px; background:#1B1B1B; color:#8A8A8A; display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; transition:all .18s cubic-bezier(.22,1,.36,1);')}>+</div>
+          </div>
+
+          {this.memoCanvas(S)}
 
           {S.menu && S.menu.project &&
             <div onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.stopPropagation(); e.preventDefault(); }}
