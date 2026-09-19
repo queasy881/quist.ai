@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "quist", "runtimeExecutable": "node", "runtimeArgs": ["test/dev-server.js"], "port": 3000 }
+  ]
+}

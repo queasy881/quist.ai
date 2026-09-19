@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create account — Quist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/auth.css">
+</head>
+<body>
+<div class="wrap">
+  <form class="card" data-mode="signup" autocomplete="on">
+    <div class="brand"><div class="dot"><i></i></div><span>cloud coding unit</span></div>
+    <div class="kicker">new account</div>
+    <h1>Create your unit</h1>
+    <p class="sub">One account, every project, every machine. Claude Code on your laptop connects with a token you generate inside.</p>
+    <input name="email" type="email" placeholder="you@example.com" autocomplete="email" required spellcheck="false">
+    <input name="password" type="password" placeholder="password · 8+ characters" autocomplete="new-password" minlength="8" required>
+    <div class="err"></div>
+    <button type="submit">Create account</button>
+    <div class="foot">Already have one? <a href="/login">Sign in</a></div>
+  </form>
+</div>
+<script src="/auth.js"></script>
+</body>
+</html>

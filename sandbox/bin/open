@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+[ -z "$1" ] && { echo "open: usage open <file>" >&2; exit 1; }
+f="$1"
+if [ -e "$f" ]; then
+  root="${QUIST_WORKSPACE:-/workspace}"
+  [ -d "$root" ] || root="$(cd "$(dirname "$HISTFILE")/.." && pwd)"
+  rel=$(realpath --relative-to="$root" "$f" 2>/dev/null || python3 -c "import os,sys;print(os.path.relpath(sys.argv[1],sys.argv[2]))" "$f" "$root")
+else
+  rel="$f"
+fi
+out=$(_quist_ctl POST /open -H 'Content-Type: application/json' --data "{\"path\":$(printf '%s' "$rel" | sed 's/\/\\/g; s/"/\\"/g; s/^/"/; s/$/"/')}")
+case "$out" in *'"ok":true'*) echo "opened $rel";; *) echo "open: ${out:-no response}" >&2; exit 1;; esac

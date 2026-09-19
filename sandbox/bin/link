@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# link <folder> <node>: the folder owns the node. On disk that is a move.
+[ $# -lt 2 ] && { echo "link: usage link <folder> <node>" >&2; exit 1; }
+[ -d "$1" ] || { echo "link: $1 is not a folder" >&2; exit 1; }
+[ -e "$2" ] || { echo "link: no such node: $2" >&2; exit 1; }
+mv -- "$2" "$1/" && echo "linked $1 > $(basename -- "$2")"

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Prefer the real `tree` if installed; otherwise print the resolved graph tree.
+real=$(type -aP tree 2>/dev/null | grep -v "/opt/quist/bin/\|/sandbox/bin/" | head -1)
+if [ -n "$real" ] && [ $# -gt 0 ]; then exec "$real" "$@"; fi
+if [ -n "$real" ]; then exec "$real" -I '.quist|node_modules|.git|target|out|dist|__pycache__' --noreport; fi
+_quist_ctl GET /tree

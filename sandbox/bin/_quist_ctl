@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Shared helper for the built-ins: `_quist_ctl METHOD PATH [curl args...]`
+# Talks to the server over loopback, or over the unix socket inside a
+# network-less container.
+[ -z "$QUIST_CTL_URL" ] && { echo "not inside a quist shell" >&2; exit 1; }
+method="$1"; shift; route="$1"; shift
+sock=()
+[ -n "$QUIST_CTL_SOCK" ] && sock=(--unix-socket "$QUIST_CTL_SOCK")
+exec curl -sS "${sock[@]}" -X "$method" -H "Authorization: Bearer $QUIST_CTL_TOKEN" "$QUIST_CTL_URL$route" "$@"

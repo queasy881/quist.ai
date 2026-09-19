@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+cat <<'TXT'
+help              this list
+ls                list files          (real ls — the graph mirrors /workspace)
+tree              print resolved tree
+mkdir <name>      create a folder node
+touch <name>      create a file node
+open <file>       open a file in the editor
+link <a> <b>      folder a owns node b   (= mv b a/)
+rm <name>         delete a node          (rm -r for folders)
+mcp list          tools exposed to Claude Code, on/off
+build [toolchain] queue a server-side build and stream its log
+                  build list · build <toolchain> -- <custom command>
+deploy            (no target configured)
+whoami · pwd · clear · history
+Everything you do here is written back to the canvas, and vice versa.
+TXT

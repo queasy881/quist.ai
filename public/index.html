@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quist — cloud coding unit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Ccircle cx='13' cy='13' r='13' fill='%23D97757'/%3E%3Ccircle cx='13' cy='13' r='4.5' fill='%23111'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- UMD libs first: they attach to window. Monaco's loader.js installs a global
+     AMD `define` that would otherwise capture xterm's anonymous define. -->
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<style>
+  html, body, #root { margin:0; padding:0; height:100%; background:#0B0B0B; }
+  * { box-sizing:border-box; }
+  a { color:#D97757; text-decoration:none; }
+  a:hover { color:#E8916F; }
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb { background:#2E2E2E; border-radius:999px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  input:focus, textarea:focus, select:focus { outline:none; }
+  select { appearance:none; -webkit-appearance:none; }
+  .hv-add:hover { background:#D97757 !important; color:#111 !important; }
+  .hv-cta:hover { background:#E8916F !important; }
+  .hv-item:hover { background:#222; color:#D97757; }
+  .hv-text:hover { color:#D97757 !important; }
+  .hv-dash:hover { border-color:#D97757 !important; color:#D97757 !important; }
+  .xterm { padding:0 14px 10px 18px; }
+  .xterm .xterm-viewport { background:#0D0D0D !important; border-radius:0 0 26px 26px; }
+  .xterm .xterm-screen { border-radius:0 0 26px 26px; }
+  .xterm-rows span { font-variant-ligatures:none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="/app.jsx"></script>
+</body>
+</html>

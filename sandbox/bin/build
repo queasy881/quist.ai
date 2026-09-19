@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# build [toolchain] [-- custom command]   |   build list
+# Queues a build job on the server and streams its log here until it finishes.
+if [ "$1" = "list" ]; then _quist_ctl GET /toolchains; exit; fi
+tc=""; cmd=""
+if [ -n "$1" ] && [ "$1" != "--" ]; then tc="$1"; shift; fi
+if [ "$1" = "--" ]; then shift; cmd="$*"; fi
+json() { printf '%s' "$1" | sed 's/\/\\/g; s/"/\\"/g; s/^/"/; s/$/"/'; }
+body="{\"toolchain\":$(json "${tc:-clang++}")"
+[ -n "$cmd" ] && body="$body,\"command\":$(json "$cmd")"
+[ -n "$tc" ] && [ -z "$cmd" ] && [ "$tc" = "custom" ] && { echo "build: custom needs -- <command>" >&2; exit 1; }
+body="$body}"
+res=$(_quist_ctl POST /build -H 'Content-Type: application/json' --data "$body")
+id=$(printf '%s' "$res" | sed -n 's/.*"id":"\([0-9a-f-]*\)".*/\1/p' | head -1)
+[ -z "$id" ] && { echo "build: $res" >&2; exit 1; }
+printf '\e[38;2;110;110;110mqueued build %s (%s)\e[0m\n' "${id:0:8}" "${tc:-clang++}"
+from=0; status="queued"
+while :; do
+  page=$(_quist_ctl GET "/build/$id?from=$from")
+  status=$(printf '%s' "$page" | sed -n 's/.*"status":"\([a-z]*\)".*/\1/p' | head -1)
+  chunk=$(printf '%s' "$page" | python3 -c 'import sys,json; d=json.load(sys.stdin)["build"]; sys.stdout.write(d.get("log","")); print("\x00%d"%d.get("log_length",0), end="")' 2>/dev/null)
+  if [ -n "$chunk" ]; then
+    text="${chunk%$'\x00'*}"; from="${chunk##*$'\x00'}"
+    printf '%s' "$text"
+  fi
+  case "$status" in succeeded|failed|cancelled) break;; esac
+  sleep 0.6
+done
+if [ "$status" = "succeeded" ]; then printf '\e[38;2;217;119;87mbuild %s succeeded — artifacts are in the Builds tab\e[0m\n' "${id:0:8}"
+else printf '\e[38;2;194;91;74mbuild %s %s\e[0m\n' "${id:0:8}" "$status"; exit 1; fi

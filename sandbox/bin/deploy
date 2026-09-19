@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+echo "deploy: no deploy target is configured for this unit." >&2
+echo "        run \`build\` — finished binaries are downloadable from the Builds tab." >&2
+exit 1

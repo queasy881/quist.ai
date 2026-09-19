@@ -1,9 +1,5 @@
-__pycache__/
-*.pyc
+node_modules/
 .env
-chats/
-screenshots/
-recordings/
-fonts/
-*.zip
-~/*
+*.log
+.DS_Store
+/workspaces/
