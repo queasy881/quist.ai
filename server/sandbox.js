@@ -197,8 +197,12 @@ async function exec({ userId, projectId, projectName, command, timeoutMs, cwd, o
       const sh = localShellCmd();
       file = sh.file; args = sh.file.endsWith('bash.exe') ? ['-lc', command] : ['-NoLogo', '-Command', command];
     } else {
+      // Pass the command via an env var so the INNER shell parses it. Embedding
+      // it in the wrapper string would let the outer shell expand $(...) and
+      // mangle escapes like \( \) — breaking any preset that globs sources.
       file = '/bin/bash';
-      args = ['-lc', `ulimit -v ${Number(process.env.EXEC_MAX_VMEM_KB || 4194304)} 2>/dev/null; exec timeout -k 5 ${secs} bash -c ${JSON.stringify(command)}`];
+      spawnEnv = { ...spawnEnv, QUIST_CMD: command };
+      args = ['-c', `ulimit -v ${Number(process.env.EXEC_MAX_VMEM_KB || 4194304)} 2>/dev/null; exec timeout -k 5 ${secs} bash -c "$QUIST_CMD"`];
     }
   }
   return new Promise(resolve => {

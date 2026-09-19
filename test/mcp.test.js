@@ -102,6 +102,16 @@ test('run_shell executes in the workspace and writes back to the graph', async (
   assert.match(read.data.content, /generated/);
 });
 
+test('run_shell handles command substitution and \\( \\) without mangling', async () => {
+  // Regression: the local Linux driver used to double-wrap via bash -c with
+  // JSON.stringify, so the outer shell expanded $(...) and broke \( \).
+  await mcp.tool('create_file', { path: 'globtest/a.cpp', content: '// a' });
+  await mcp.tool('create_file', { path: 'globtest/b.cpp', content: '// b' });
+  const out = await mcp.tool('run_shell', { command: "echo count=$(find globtest -type f \\( -name '*.cpp' \\) | wc -l | tr -d ' ')" });
+  assert.match(out, /count=2/, out);
+  assert.match(out, /exit 0/);
+});
+
 test('run_shell sees files created via the API (graph -> disk)', async () => {
   await A.post(`/api/projects/${projectId}/files`, { path: 'from-api.txt', content: 'api wrote this' });
   const out = await mcp.tool('run_shell', { command: 'cat from-api.txt' });
