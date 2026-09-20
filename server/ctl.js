@@ -1,16 +1,14 @@
 'use strict';
-// Control channel for the shell built-ins in sandbox/bin (open, link, mcp,
-// build, deploy). The shell holds a per-project QUIST_CTL_TOKEN in its env and
-// calls these over loopback (local driver) or a unix socket (docker driver,
-// where the container has no network).
+// Control channel for the shell built-ins in sandbox/bin (open, link, build,
+// deploy). The shell holds a per-project QUIST_CTL_TOKEN in its env and calls
+// these over loopback (local driver) or a unix socket (docker driver, where the
+// container has no network).
 const express = require('express');
 const { httpError, wrap } = require('./errors');
 const sandbox = require('./sandbox');
 const graph = require('./graph');
 const terminal = require('./terminal');
 const builds = require('./builds');
-const mcpTools = require('./mcp-tools');
-const { q } = require('./db');
 
 const router = express.Router();
 
@@ -31,13 +29,6 @@ router.post('/open', wrap(async (req, res) => {
 router.get('/tree', wrap(async (req, res) => {
   const g = await graph.loadGraph(req.ctl.projectId);
   res.type('text/plain').send(graph.treeText(g.nodes, g.edges) + '\n');
-}));
-
-router.get('/mcp', wrap(async (req, res) => {
-  const p = (await q('SELECT mcp_disabled FROM projects WHERE id = $1', [req.ctl.projectId])).rows[0];
-  const disabled = p ? p.mcp_disabled : [];
-  const lines = mcpTools.TOOLS.map(t => (disabled.includes(t.name) ? '○ ' : '● ') + t.name.padEnd(16) + t.kind);
-  res.type('text/plain').send(lines.join('\n') + '\n');
 }));
 
 router.get('/toolchains', (req, res) => {

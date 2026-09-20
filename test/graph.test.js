@@ -148,6 +148,44 @@ test('versions snapshot and revert restore file contents', async () => {
   assert.equal(extra.status, 404, 'files added after the snapshot are gone after revert');
 });
 
+test('exec runs a command in the project workspace and syncs new files back', async () => {
+  const p = await project(A, 'exec');
+  await A.post(`/api/projects/${p.id}/files`, { path: 'seed.txt', content: 'hi' });
+  const r = await A.post(`/api/projects/${p.id}/exec`, { command: 'echo made-by-shell > out.txt && cat seed.txt' });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.equal(r.data.exit_code, 0);
+  assert.match(r.data.stdout, /hi/);
+  const back = await A.get(`/api/projects/${p.id}/files?path=out.txt`);
+  assert.equal(back.status, 200, 'shell-created file should sync into the graph');
+  assert.match(back.data.content, /made-by-shell/);
+});
+
+test('a build compiles a C++ program when a compiler is present', async (t) => {
+  const p = await project(A, 'build');
+  const probe = await A.post(`/api/projects/${p.id}/exec`, { command: 'command -v clang++ || command -v g++ || echo NONE' });
+  if (/NONE/.test(probe.data.stdout) || probe.data.exit_code !== 0) { t.skip('no C++ compiler on host'); return; }
+  await A.post(`/api/projects/${p.id}/files`, { path: 'main.cpp', content: '#include <cstdio>\nint main(){printf("ok\\n");return 0;}\n' });
+  const win = process.platform === 'win32';
+  const enq = await A.post(`/api/projects/${p.id}/builds`, {
+    toolchain: 'custom',
+    command: `mkdir -p out && (clang++ -O2 -o out/app${win ? '.exe' : ''} main.cpp || g++ -O2 -o out/app${win ? '.exe' : ''} main.cpp)`,
+    artifact_glob: `out/app${win ? '.exe' : ''}`, label: 'test'
+  });
+  assert.equal(enq.status, 202, JSON.stringify(enq.data));
+  const id = enq.data.build.id;
+  let status = 'queued', guard = 0;
+  while (['queued', 'running'].includes(status) && guard++ < 120) {
+    await new Promise(r => setTimeout(r, 500));
+    status = (await A.get(`/api/builds/${id}`)).data.build.status;
+  }
+  assert.equal(status, 'succeeded', 'build should succeed');
+  const b = await A.get(`/api/builds/${id}?log=1`);
+  assert.ok(b.data.build.artifacts && b.data.build.artifacts.length, 'build should produce an artifact');
+  const art = b.data.build.artifacts[0];
+  const dl = await A.get(`/api/artifacts/${art.id}/download`);
+  assert.ok(Buffer.from(dl.data).length > 0, 'artifact downloads');
+});
+
 test('bulk import creates a big tree in one call with folders resolved', async () => {
   const p = await project(A, 'bulk');
   const files = [];

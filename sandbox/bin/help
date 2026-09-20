@@ -8,7 +8,6 @@ touch <name>      create a file node
 open <file>       open a file in the editor
 link <a> <b>      folder a owns node b   (= mv b a/)
 rm <name>         delete a node          (rm -r for folders)
-mcp list          tools exposed to Claude Code, on/off
 build [toolchain] queue a server-side build and stream its log
                   build list · build <toolchain> -- <custom command>
 deploy            (no target configured)

@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
 
--- Per-user tokens for the MCP server (Claude Code on the laptop).
+-- Per-user API tokens for programmatic / command-line access to the file API.
 -- Only a sha256 of the token is stored; `prefix` is the first 12 chars for display.
 CREATE TABLE IF NOT EXISTS api_tokens (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),

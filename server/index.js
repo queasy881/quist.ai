@@ -17,7 +17,6 @@ const { HttpError, pgToHttp } = require('./errors');
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC = path.join(__dirname, '..', 'public');
-const MCP_FILE = path.join(__dirname, '..', 'mcp', 'quist-mcp.js');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -35,10 +34,6 @@ app.use('/api/auth', auth.router);
 app.use('/api/tokens', auth.tokens);
 app.use('/api', routes);
 app.use('/ctl', ctl);
-
-// The MCP server is a single dependency-free file; the app serves it so the
-// "Connect Claude Code" panel can hand it out.
-app.get('/quist-mcp.js', (req, res) => { res.type('application/javascript'); res.sendFile(MCP_FILE); });
 
 // Pages. The app shell redirects to /login itself when /api/me is 401.
 app.use(express.static(PUBLIC, { extensions: ['html'], index: 'index.html', maxAge: '1h',

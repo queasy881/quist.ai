@@ -65,7 +65,6 @@ class Unit extends React.Component {
       menu: null, tab: 'editor', openId: null, editingId: null, editName: '',
       linking: null, cursor: { x: 0, y: 0 },
       versions: [], versionLabel: '',
-      mcp: [], connect: null,
       runtime: 'offline',
       toolchains: [], buildTc: 'clang++', buildCmd: '', buildGlob: 'out/app', buildLabel: '', builds: [], buildLogs: {}, openBuild: null, building: false
     };
@@ -123,8 +122,8 @@ class Unit extends React.Component {
     try {
       const me = await api('GET', '/api/me');
       const { projects } = await api('GET', '/api/projects');
-      const [tc, tools] = await Promise.all([api('GET', '/api/toolchains'), api('GET', '/api/mcp/tools')]);
-      this.setState({ user: me.user, projectList: projects, booted: true, toolchains: tc.toolchains, mcp: tools.tools.map(t => ({ ...t, on: true })) });
+      const tc = await api('GET', '/api/toolchains');
+      this.setState({ user: me.user, projectList: projects, booted: true, toolchains: tc.toolchains });
       const m = location.pathname.match(/^\/p\/([0-9a-f-]{36})$/);
       const want = m ? m[1] : localStorage.getItem('quist:last');
       const pick = projects.find(p => p.id === want) || null;
@@ -283,8 +282,7 @@ class Unit extends React.Component {
         });
         const contents = {};
         for (const n of merged) if (st.contents[n.id] !== undefined) contents[n.id] = st.contents[n.id];
-        return { nodes: merged, edges, contents, project: { ...st.project, mcp_disabled: project.mcp_disabled }, openId: openStillThere ? st.openId : null,
-          mcp: st.mcp.map(t => ({ ...t, on: !(project.mcp_disabled || []).includes(t.name) })) };
+        return { nodes: merged, edges, contents, project: { ...st.project, name: project.name }, openId: openStillThere ? st.openId : null };
       });
     } catch (e) { this.log('sync: ' + e.message, 'err'); }
   }
@@ -293,7 +291,7 @@ class Unit extends React.Component {
     if (this.currentProjectId === p.id) return;
     this.currentProjectId = p.id;
     await this.flushContent();
-    this.setState({ project: p, nodes: [], edges: [], contents: {}, openId: null, versions: [], builds: [], buildLogs: {}, openBuild: null, connect: null, pan: { x: 0, y: 0 } });
+    this.setState({ project: p, nodes: [], edges: [], contents: {}, openId: null, versions: [], builds: [], buildLogs: {}, openBuild: null, pan: { x: 0, y: 0 } });
     localStorage.setItem('quist:last', p.id);
     history.replaceState(null, '', '/p/' + p.id);
     await this.loadGraph();
@@ -392,7 +390,7 @@ class Unit extends React.Component {
     if (this.ws) { const w = this.ws; this.ws = null; try { w.close(); } catch (e) { /* closed */ } }
   }
 
-  // A change made by the shell, the MCP server, or another tab. Keep the canvas truthful.
+  // A change made by the shell or another tab/device. Keep the canvas truthful.
   onGraphEvent(ev) {
     if (ev.type === 'node.updated' && ev.changed && ev.changed.oldName === undefined && ev.changed.content === undefined && ev.changed.size === undefined) {
       const dragging = this.drag && this.drag.kind === 'node' && this.drag.id === ev.node.id;
@@ -592,25 +590,6 @@ class Unit extends React.Component {
       await this.loadGraph();
       this.log('reverted graph to ' + v.label, 'ok');
     } catch (e) { this.log('revert: ' + e.message, 'err'); }
-  }
-
-  /* ---------- mcp ---------- */
-  async toggleTool(name) {
-    const p = this.state.project;
-    const disabled = new Set(p.mcp_disabled || []);
-    disabled.has(name) ? disabled.delete(name) : disabled.add(name);
-    this.setState(st => ({ mcp: st.mcp.map(t => t.name === name ? { ...t, on: !disabled.has(name) } : t), project: { ...st.project, mcp_disabled: [...disabled] } }));
-    try { await api('PATCH', '/api/projects/' + p.id, { mcp_disabled: [...disabled] }); } catch (e) { this.log('mcp: ' + e.message, 'err'); }
-  }
-  async connectClaude() {
-    try {
-      const t = await api('POST', '/api/tokens', { name: 'claude-code' });
-      this.setState({ connect: { token: t.token, prefix: t.prefix } });
-    } catch (e) { this.log('token: ' + e.message, 'err'); }
-  }
-  connectConfig() {
-    const c = this.state.connect;
-    return JSON.stringify({ mcpServers: { quist: { command: 'node', args: ['quist-mcp.js'], env: { QUIST_URL: location.origin, QUIST_TOKEN: c ? c.token : 'qst_…', QUIST_PROJECT: this.state.project ? this.state.project.id : '' } } } }, null, 2);
   }
 
   /* ---------- builds ---------- */
@@ -881,7 +860,7 @@ class Unit extends React.Component {
             <div style={s('width:26px; height:26px; border-radius:999px; background:#D97757; display:flex; align-items:center; justify-content:center;')}>
               <div style={s('width:9px; height:9px; border-radius:999px; background:#111111;')}></div>
             </div>
-            <span style={s("font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:#B4B4B4;")}>cloud coding unit</span>
+            <span style={s("font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:#B4B4B4;")}>cloud storage unit</span>
           </div>
           <div style={s('width:1px; height:18px; background:#282828; border-radius:999px;')}></div>
           <div style={s('display:flex; align-items:center; gap:8px; min-width:0;')}>
@@ -935,7 +914,7 @@ class Unit extends React.Component {
 
             <div style={s('flex:1; min-height:0; background:#111111; border-radius:26px; display:flex; flex-direction:column; overflow:hidden;')}>
               <div style={s('height:52px; flex:0 0 52px; display:flex; align-items:center; gap:6px; padding:0 12px;')}>
-                {[['Editor', 'editor'], ['MCP', 'mcp'], ['Tree', 'tree'], ['Builds', 'builds']].map(([label, k]) => (
+                {[['Editor', 'editor'], ['Versions', 'mcp'], ['Tree', 'tree'], ['Builds', 'builds']].map(([label, k]) => (
                   <div key={k} onClick={() => { this.setState({ tab: k }); if (k === 'builds' && !this.bws) this.connectBuilds(); }} style={s(tabStyle(k))}>{label}</div>
                 ))}
                 <div style={s('flex:1;')}></div>
@@ -967,21 +946,13 @@ class Unit extends React.Component {
 
                 <div style={s(paneBase + (S.tab === 'mcp' ? '' : 'display:none;'))}>
                   <div style={s('padding:20px 20px 14px;')}>
-                    <div style={s("font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#D97757;")}>mcp · claude code</div>
-                    <div style={s('font-size:13.5px; color:#8A8A8A; margin-top:9px; line-height:1.55;')}>Tools Claude Code on your laptop gets through the Quist MCP server. It codes here, never on your disk. Toggles apply on the next call.</div>
+                    <div style={s("font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#D97757;")}>versions</div>
+                    <div style={s('font-size:13.5px; color:#8A8A8A; margin-top:9px; line-height:1.55;')}>Snapshot the whole project under a label, and roll every file back to it later.</div>
                   </div>
                   <div style={s('flex:1; overflow:auto; padding:0 20px 20px; display:flex; flex-direction:column; gap:10px;')}>
 
                     <div style={s('background:#1B1B1B; border-radius:22px; padding:16px 18px;')}>
-                      <div style={s('display:flex; align-items:center; gap:12px;')}>
-                        <div style={s('width:9px; height:9px; border-radius:999px; flex:0 0 9px; background:#D97757;')}></div>
-                        <div style={s('flex:1; min-width:0;')}>
-                          <div style={s("font-family:'JetBrains Mono', monospace; font-size:12.5px;")}>version</div>
-                          <div style={s('font-size:11.5px; color:#7C7C7C; margin-top:4px;')}>Snapshot the graph, revert every file to it</div>
-                        </div>
-                        <div style={s(pillS)}>2 tools</div>
-                      </div>
-                      <div style={s('display:flex; gap:8px; margin-top:14px;')}>
+                      <div style={s('display:flex; gap:8px;')}>
                         <input
                           value={S.versionLabel}
                           onChange={e => this.setState({ versionLabel: e.target.value })}
@@ -1005,44 +976,6 @@ class Unit extends React.Component {
                           <div style={s("font-family:'JetBrains Mono', monospace; font-size:11px; color:#5A5A5A; padding:4px 2px;")}>no snapshots yet</div>}
                       </div>
                     </div>
-
-                    {S.mcp.map(m => (
-                      <div key={m.name} style={s('background:#1B1B1B; border-radius:22px; padding:15px 18px; display:flex; align-items:center; gap:14px;')}>
-                        <div style={s(`width:9px; height:9px; border-radius:999px; flex:0 0 9px; background:${m.on ? '#D97757' : '#3A3A3A'};`)}></div>
-                        <div style={s('flex:1; min-width:0;')}>
-                          <div style={s("font-family:'JetBrains Mono', monospace; font-size:12.5px;")}>{m.name}</div>
-                          <div style={s('font-size:11.5px; color:#7C7C7C; margin-top:4px;')}>{m.desc}</div>
-                        </div>
-                        <div style={s(pillS)}>{m.kind}</div>
-                        <div onClick={() => S.project && this.toggleTool(m.name)}
-                             style={s(`width:42px; height:24px; border-radius:999px; background:${m.on ? '#D97757' : '#2A2A2A'}; padding:3px; display:flex; cursor:pointer; transition:background .18s cubic-bezier(.22,1,.36,1);`)}>
-                          <div style={s(`width:18px; height:18px; border-radius:999px; background:${m.on ? '#141414' : '#8A8A8A'}; margin-left:${m.on ? '18px' : '0'}; transition:margin .18s cubic-bezier(.22,1,.36,1);`)}></div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {S.connect ? (
-                      <div style={s('background:#1B1B1B; border-radius:22px; padding:16px 18px; user-select:text;')}>
-                        <div style={s('display:flex; align-items:center; gap:12px;')}>
-                          <div style={s('width:9px; height:9px; border-radius:999px; flex:0 0 9px; background:#D97757;')}></div>
-                          <div style={s('flex:1; min-width:0;')}>
-                            <div style={s("font-family:'JetBrains Mono', monospace; font-size:12.5px;")}>connect claude code</div>
-                            <div style={s('font-size:11.5px; color:#7C7C7C; margin-top:4px;')}>Token {S.connect.prefix}… is shown once. Three steps, on the laptop that runs Claude Code.</div>
-                          </div>
-                          <div className="hv-text" onClick={() => { navigator.clipboard.writeText(this.connectConfig()); this.log('config copied', 'ok'); }}
-                               style={s('font-size:11.5px; color:#9A9A9A; background:#1F1F1F; border-radius:999px; padding:6px 14px; cursor:pointer;')}>Copy config</div>
-                        </div>
-                        <div style={s('font-size:12.5px; color:#B4B4B4; line-height:1.7; margin-top:12px;')}>
-                          1 · Save <a href="/quist-mcp.js" download>quist-mcp.js</a> anywhere on the laptop (needs Node ≥ 18).<br />
-                          2 · Put this in <span style={s("font-family:'JetBrains Mono', monospace; color:#EDEDED;")}>.mcp.json</span> in an empty folder, fix the path to the file, and start <span style={s("font-family:'JetBrains Mono', monospace; color:#EDEDED;")}>claude</span> there.<br />
-                          3 · Deny its local tools so it only codes through Quist — the README has the settings block.
-                        </div>
-                        <pre style={s("font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.6; color:#B4B4B4; background:#0F0F0F; border-radius:16px; padding:14px 16px; margin:12px 0 0; overflow:auto; white-space:pre;")}>{this.connectConfig()}</pre>
-                      </div>
-                    ) : (
-                      <div className="hv-dash" onClick={() => S.project && this.connectClaude()}
-                           style={s('border:1.5px dashed #2C2C2C; border-radius:22px; padding:14px; text-align:center; font-size:12.5px; color:#7C7C7C; cursor:pointer;')}>Connect Claude Code</div>
-                    )}
                   </div>
                 </div>
 

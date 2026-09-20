@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-case "$1" in
-  list) _quist_ctl GET /mcp ;;
-  *) echo "mcp: try \`mcp list\`" >&2; exit 1 ;;
-esac

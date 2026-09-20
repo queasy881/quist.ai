@@ -13,7 +13,6 @@ const builds = require('./builds');
 const workspace = require('./workspace');
 const terminal = require('./terminal');
 const sandbox = require('./sandbox');
-const mcpTools = require('./mcp-tools');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -42,17 +41,13 @@ router.post('/projects', wrap(async (req, res) => {
 router.get('/projects/:id', wrap(async (req, res) => {
   const project = await graph.ownProject(req.user.id, req.params.id);
   const g = await graph.loadGraph(project.id);
-  res.json({ project: { id: project.id, name: project.name, mcp_disabled: project.mcp_disabled, created_at: project.created_at, updated_at: project.updated_at }, nodes: g.nodes, edges: g.edges });
+  res.json({ project: { id: project.id, name: project.name, created_at: project.created_at, updated_at: project.updated_at }, nodes: g.nodes, edges: g.edges });
 }));
 
 router.patch('/projects/:id', wrap(async (req, res) => {
   const project = await graph.ownProject(req.user.id, req.params.id);
-  const sets = [], vals = [];
-  if (typeof req.body.name === 'string' && req.body.name.trim()) { vals.push(req.body.name.trim().slice(0, 80)); sets.push(`name = $${vals.length}`); }
-  if (Array.isArray(req.body.mcp_disabled)) { vals.push(req.body.mcp_disabled.map(String).filter(t => mcpTools.byName(t))); sets.push(`mcp_disabled = $${vals.length}`); }
-  if (!sets.length) return res.json({ project });
-  vals.push(project.id);
-  const r = await q(`UPDATE projects SET ${sets.join(', ')}, updated_at = now() WHERE id = $${vals.length} RETURNING id, name, mcp_disabled, created_at, updated_at`, vals);
+  if (typeof req.body.name !== 'string' || !req.body.name.trim()) return res.json({ project });
+  const r = await q('UPDATE projects SET name = $1, updated_at = now() WHERE id = $2 RETURNING id, name, created_at, updated_at', [req.body.name.trim().slice(0, 80), project.id]);
   res.json({ project: r.rows[0] });
 }));
 
@@ -236,7 +231,7 @@ router.get('/projects/:id/search', wrap(async (req, res) => {
   res.json(out);
 }));
 
-// Run a command in the project workspace (MCP run_shell). Bounded by EXEC_TIMEOUT.
+// Run a command in the project workspace. Bounded by EXEC_TIMEOUT.
 router.post('/projects/:id/exec', wrap(async (req, res) => {
   const project = await graph.ownProject(req.user.id, req.params.id);
   const command = String(req.body.command || '').trim();
@@ -263,13 +258,6 @@ router.get('/artifacts/:id/download', wrap(async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(a.name.split('/').pop())}"`);
   res.setHeader('Content-Type', 'application/octet-stream');
   res.send(a.data || Buffer.alloc(0));
-}));
-
-// ---------- MCP tool manifest (what the MCP tab shows; what the MCP server enforces) ----------
-router.get('/mcp/tools', (req, res) => res.json({ tools: mcpTools.TOOLS.map(t => ({ name: t.name, desc: t.desc, kind: t.kind })) }));
-router.get('/projects/:id/mcp', wrap(async (req, res) => {
-  const p = await graph.ownProject(req.user.id, req.params.id);
-  res.json({ tools: mcpTools.TOOLS.map(t => ({ name: t.name, desc: t.desc, kind: t.kind, on: !p.mcp_disabled.includes(t.name) })) });
 }));
 
 module.exports = router;
