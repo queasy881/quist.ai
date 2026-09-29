@@ -54,6 +54,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'internal error' });
 });
 
+// Node reports some connection failures (e.g. refused on every address) as an AggregateError with
+// an empty message; spell out the codes so /healthz and the logs say what happened.
+function errText(e) {
+  if (!e) return 'unknown error';
+  if (e.message) return e.message;
+  const inner = Array.isArray(e.errors) ? e.errors.map(x => x && (x.message || x.code)).filter(Boolean) : [];
+  return inner.length ? inner.join('; ') : (e.code || String(e));
+}
+
 async function main() {
   // Bind first so the platform health check passes and logs are reachable even
   // if the database is misconfigured; then migrate and start the workers.
@@ -62,18 +71,28 @@ async function main() {
   await new Promise(r => server.listen(PORT, r));
   console.log(`[quist] listening on :${PORT}`);
 
-  try {
-    await migrate();
-    health.db = true;
-    console.log('[quist] database ready');
-    storage.pruneParts().catch(e => console.error('[storage] prune:', e.message));
-  } catch (e) {
-    health.dbError = e.message;
-    console.error('[quist] DATABASE NOT READY — the API will 5xx until this is fixed:\n   ', e.message);
-    console.error('    Link a Postgres service so DATABASE_URL is set, then redeploy.');
-  }
   await sandbox.init();
-  if (health.db) { try { await builds.startWorker(); } catch (e) { console.error('[quist] build worker:', e.message); } }
+  // Keep trying: Postgres may still be starting (or restarting) when we boot. Without the retry one
+  // refused connection left the API 5xx-ing until the next redeploy.
+  const dbUp = async () => {
+    health.db = true;
+    health.dbError = null;
+    console.log('[quist] database ready');
+    storage.pruneParts().catch(e => console.error('[storage] prune:', errText(e)));
+    try { await builds.startWorker(); } catch (e) { console.error('[quist] build worker:', errText(e)); }
+  };
+  const tryDb = async attempt => {
+    try {
+      await migrate();
+      await dbUp();
+    } catch (e) {
+      health.dbError = errText(e);
+      if (attempt === 1) console.error('[quist] DATABASE NOT READY — the API will 5xx until it is (retrying every 5 s):\n   ', health.dbError);
+      else if (attempt % 12 === 0) console.error('[quist] still no database after', attempt, 'tries:', health.dbError);
+      setTimeout(() => tryDb(attempt + 1), 5000);
+    }
+  };
+  await tryDb(1);
   // Docker driver: containers have no network, so built-ins reach us over a unix socket.
   if (sandbox.getDriver() === 'docker' && process.platform !== 'win32') {
     try { fs.unlinkSync(sandbox.CTL_SOCK); } catch (_) { /* none */ }

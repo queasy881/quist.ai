@@ -125,7 +125,7 @@ async function storeFileParts(filePath) {
 // when no upload can be half-way through writing its parts.
 async function pruneParts() {
   const r = await q(`DELETE FROM blob_parts bp
-    WHERE NOT EXISTS (SELECT 1 FROM nodes n WHERE n.blob = convert_to('pgp:' || bp.id::text, 'LATIN1'))
+    WHERE NOT EXISTS (SELECT 1 FROM nodes n WHERE n.blob = convert_to('pgp:' || bp.id::text, 'UTF8'))
       AND NOT EXISTS (SELECT 1 FROM versions v WHERE strpos(v.snapshot::text, 'pgp:' || bp.id::text) > 0)`);
   if (r.rowCount) console.log('[storage] pruned', r.rowCount, 'orphaned blob parts');
 }
