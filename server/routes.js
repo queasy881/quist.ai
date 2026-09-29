@@ -1,6 +1,9 @@
 'use strict';
 // All /api routes. Every handler runs behind requireAuth and every query is
 // scoped by req.user.id via graph.ownProject / ownNode.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const express = require('express');
 const multer = require('multer');
 const { q } = require('./db');
@@ -17,7 +20,25 @@ const sandbox = require('./sandbox');
 const router = express.Router();
 router.use(requireAuth);
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: Number(process.env.MAX_UPLOAD_BYTES || 200 * 1024 * 1024), files: 500 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: Number(process.env.MAX_UPLOAD_BYTES || 2 * 1024 * 1024 * 1024), files: 500 } });
+
+// Big files come in as many small chunk requests (resumable, visible progress, and no single request long
+// enough to hit a proxy timeout on a slow connection). Chunks land in a temp file; /complete stores it.
+const MAX_CHUNKED = Number(process.env.MAX_CHUNKED_UPLOAD_BYTES || 2 * 1024 * 1024 * 1024);
+const MAX_CHUNK = 16 * 1024 * 1024;
+const UP_DIR = path.join(os.tmpdir(), 'quist-uploads');
+const UP_TTL = 24 * 60 * 60 * 1000;
+const uploadId = v => (/^[A-Za-z0-9_-]{8,64}$/.test(String(v || '')) ? String(v) : null);
+const uploadFile = (userId, id) => path.join(UP_DIR, String(userId).replace(/[^A-Za-z0-9_-]/g, '') + '-' + id);
+async function pruneUploads() {
+  const names = await fs.promises.readdir(UP_DIR).catch(() => []);
+  const now = Date.now();
+  await Promise.all(names.map(async n => {
+    const f = path.join(UP_DIR, n);
+    const st = await fs.promises.stat(f).catch(() => null);
+    if (st && now - st.mtimeMs > UP_TTL) await fs.promises.unlink(f).catch(() => {});
+  }));
+}
 const num = v => (v === undefined || v === null || v === '' ? undefined : Number(v));
 const bool = v => v === true || v === '1' || v === 'true';
 
@@ -128,6 +149,48 @@ router.post('/projects/:id/upload', upload.array('files'), wrap(async (req, res)
   const files = (req.files || []).map((f, i) => ({ path: graph.cleanPath(paths[i] || f.originalname), blob: f.buffer }));
   const result = await graph.createNodesBulk(req.user.id, req.params.id, files);
   res.status(201).json(result);
+}));
+
+// ---------- chunked upload (big files) ----------
+// PUT .../upload/chunk?upload=<id>&offset=<byte>&total=<bytes>  body: raw bytes (<= 16 MB)
+router.put('/projects/:id/upload/chunk', express.raw({ type: () => true, limit: MAX_CHUNK }), wrap(async (req, res) => {
+  await graph.ownProject(req.user.id, req.params.id);
+  const id = uploadId(req.query.upload);
+  const offset = Number(req.query.offset);
+  const total = Number(req.query.total);
+  const body = req.body;
+  if (!id || !Number.isInteger(offset) || offset < 0 || !Number.isInteger(total) || total <= 0) throw httpError(400, 'bad chunk parameters');
+  if (total > MAX_CHUNKED) throw httpError(413, `file too large (max ${Math.round(MAX_CHUNKED / 1048576)} MB)`);
+  if (!Buffer.isBuffer(body) || !body.length) throw httpError(400, 'empty chunk');
+  if (offset + body.length > total) throw httpError(400, 'chunk runs past the end of the file');
+  await fs.promises.mkdir(UP_DIR, { recursive: true });
+  if (offset === 0) await pruneUploads();
+  const file = uploadFile(req.user.id, id);
+  const fh = await fs.promises.open(file, offset === 0 ? 'w' : 'r+').catch(e => {
+    if (e.code === 'ENOENT') throw httpError(404, 'upload not found (it may have expired), start again');
+    throw e;
+  });
+  try { await fh.write(body, 0, body.length, offset); } finally { await fh.close(); }
+  res.json({ ok: true, received: offset + body.length });
+}));
+
+// POST .../upload/complete  { upload, size, path }  -> stores the assembled file as a node
+router.post('/projects/:id/upload/complete', wrap(async (req, res) => {
+  await graph.ownProject(req.user.id, req.params.id);
+  const id = uploadId(req.body.upload);
+  const size = Number(req.body.size);
+  if (!id || !Number.isInteger(size) || size <= 0) throw httpError(400, 'bad upload');
+  const file = uploadFile(req.user.id, id);
+  const st = await fs.promises.stat(file).catch(() => null);
+  if (!st) throw httpError(404, 'upload not found (it may have expired), start again');
+  if (st.size !== size) throw httpError(400, `upload incomplete: server has ${st.size} of ${size} bytes`);
+  try {
+    const blob = await fs.promises.readFile(file);
+    const result = await graph.createNodesBulk(req.user.id, req.params.id, [{ path: String(req.body.path || req.body.name || 'upload.bin'), blob }]);
+    res.status(201).json(result);
+  } finally {
+    await fs.promises.unlink(file).catch(() => {});
+  }
 }));
 
 // ---------- bulk file import (MCP upload_file, big trees) ----------

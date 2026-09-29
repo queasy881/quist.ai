@@ -212,6 +212,34 @@ test('bulk import creates a big tree in one call with folders resolved', async (
   assert.ok(ms < 8000, 'bulk import of 400 files took ' + ms + 'ms');
 });
 
+test('chunked upload assembles a big file byte-for-byte', async () => {
+  const p = await project(A, 'chunked');
+  const bytes = Buffer.alloc(3 * 1024 * 1024 + 123);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31 + (i >> 9)) & 255;
+  const CH = 1024 * 1024 + 7;
+  const id = 'testupload' + Date.now();
+  for (let off = 0; off < bytes.length; off += CH) {
+    const part = bytes.subarray(off, Math.min(off + CH, bytes.length));
+    const r = await A.req('PUT', `/api/projects/${p.id}/upload/chunk?upload=${id}&offset=${off}&total=${bytes.length}`, Buffer.from(part));
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+  }
+  // asking to finish with the wrong size is refused and says why
+  const bad = await A.post(`/api/projects/${p.id}/upload/complete`, { upload: id, size: bytes.length + 1, path: 'big.bin' });
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /incomplete/);
+  const r = await A.post(`/api/projects/${p.id}/upload/complete`, { upload: id, size: bytes.length, path: 'big.bin' });
+  assert.equal(r.status, 201, JSON.stringify(r.data));
+  assert.equal(r.data.created, 1);
+  const g = await A.get(`/api/projects/${p.id}`);
+  const node = g.data.nodes.find(n => n.name === 'big.bin');
+  assert.ok(node && node.binary, 'binary node created');
+  const dl = await A.get(`/api/nodes/${node.id}/download`);
+  assert.ok(Buffer.from(dl.data).equals(bytes), 'downloaded bytes match');
+  // the temp file is gone once stored
+  const again = await A.post(`/api/projects/${p.id}/upload/complete`, { upload: id, size: bytes.length, path: 'big.bin' });
+  assert.equal(again.status, 404);
+});
+
 test('binary upload is stored and downloadable byte-for-byte', async () => {
   const p = await project(A, 'bin');
   const bytes = Buffer.from([0, 1, 2, 3, 255, 254, 0, 66]);

@@ -51,6 +51,26 @@ async function api(method, path, body, opts = {}) {
   if (!r.ok) throw new Error(j.error || (r.status + ' ' + r.statusText));
   return j;
 }
+// Upload with byte-level progress (fetch has none). POST for FormData, PUT for raw bytes.
+function xhrUpload(url, body, onProgress, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open(body instanceof FormData ? 'POST' : 'PUT', url);
+    x.withCredentials = true;
+    for (const k in headers) x.setRequestHeader(k, headers[k]);
+    x.upload.onprogress = ev => { if (ev.lengthComputable && onProgress) onProgress(ev.loaded); };
+    x.onload = () => {
+      let j = {};
+      try { j = JSON.parse(x.responseText); } catch (_) { /* not json */ }
+      if (x.status === 401) { location.replace('/login?next=' + encodeURIComponent(location.pathname)); reject(new Error('signed out')); return; }
+      if (x.status >= 200 && x.status < 300) resolve(j);
+      else reject(new Error(j.error || ('HTTP ' + x.status + (x.statusText ? ' ' + x.statusText : ''))));
+    };
+    x.onerror = () => reject(new Error('network error'));
+    x.send(body);
+  });
+}
+const CHUNK_BYTES = 8 * 1024 * 1024;     // files bigger than this go up in chunks
 const fmtBytes = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
 const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
@@ -639,20 +659,98 @@ class Unit extends React.Component {
   }
 
   /* ---------- upload ---------- */
+  // Small files go in one multipart request; big ones in CHUNK_BYTES pieces. Either way the upload
+  // panel (bottom left) shows what's happening: progress, speed, then done - or the error.
   onUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = '';
     if (!files.length || !this.state.project) return;
+    const pid = this.state.project.id;
     const base = this.dropAt || { x: 140 - this.state.pan.x, y: 120 - this.state.pan.y };
-    const fd = new FormData();
-    files.forEach(f => { fd.append('files', f, f.name); fd.append('paths', f.webkitRelativePath || f.name); });
-    fd.append('x', Math.round(base.x - NW / 2)); fd.append('y', Math.round(base.y - NH / 2));
+    const small = files.filter(f => f.size <= CHUNK_BYTES), big = files.filter(f => f.size > CHUNK_BYTES);
+    const total = files.reduce((a, f) => a + f.size, 0);
+    const label = files.length === 1 ? files[0].name : files.length + ' files';
+    const show = patch => this.setState(st => ({ upload: { ...(st.upload || {}), ...patch } }));
+    this.setState({ upload: { name: label, total, sent: 0, status: 'uploading', error: null, started: Date.now() } });
+    let done = 0, created = 0, folders = 0;
     try {
-      const r = await api('POST', '/api/projects/' + this.state.project.id + '/upload', fd);
+      if (small.length) {
+        const fd = new FormData();
+        small.forEach(f => { fd.append('files', f, f.name); fd.append('paths', f.webkitRelativePath || f.name); });
+        fd.append('x', Math.round(base.x - NW / 2)); fd.append('y', Math.round(base.y - NH / 2));
+        const r = await xhrUpload('/api/projects/' + pid + '/upload', fd, n => show({ sent: done + n }));
+        created += r.created || 0; folders += r.folders || 0;
+        done += small.reduce((a, f) => a + f.size, 0);
+      }
+      for (const f of big) {
+        const r = await this.uploadChunked(pid, f, n => show({ sent: done + n, status: 'uploading' }));
+        created += r.created || 0; folders += r.folders || 0;
+        done += f.size;
+      }
       await this.loadGraph();
-      this.log('uploaded ' + r.created + ' file(s)' + (r.folders ? ' (' + r.folders + ' folders)' : ''), 'ok');
-    } catch (err) { this.log('upload: ' + err.message, 'err'); }
+      show({ sent: total, status: 'done' });
+      this.log('uploaded ' + created + ' file(s)' + (folders ? ' (' + folders + ' folders)' : ''), 'ok');
+      setTimeout(() => this.setState(st => (st.upload && st.upload.status === 'done' ? { upload: null } : null)), 8000);
+    } catch (err) {
+      show({ status: 'error', error: err.message });
+      this.log('upload: ' + err.message, 'err');
+    }
   };
+
+  async uploadChunked(pid, file, onProgress) {
+    const id = (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9_-]/g, '');
+    for (let off = 0; off < file.size; off += CHUNK_BYTES) {
+      const part = file.slice(off, Math.min(off + CHUNK_BYTES, file.size));
+      const url = '/api/projects/' + pid + '/upload/chunk?upload=' + id + '&offset=' + off + '&total=' + file.size;
+      for (let attempt = 1; ; attempt++) {
+        try { await xhrUpload(url, part, n => onProgress(off + n), { 'Content-Type': 'application/octet-stream' }); break; }
+        catch (err) {
+          // flaky connection: retry the same chunk a few times; hard errors stop straight away
+          if (attempt >= 5 || /too large|signed out|not found|bad chunk/i.test(err.message)) throw err;
+          this.setState(st => ({ upload: { ...st.upload, status: 'retrying' } }));
+          await new Promise(r => setTimeout(r, 1500 * attempt));
+        }
+      }
+    }
+    onProgress(file.size);
+    this.setState(st => ({ upload: { ...st.upload, status: 'saving' } }));
+    return api('POST', '/api/projects/' + pid + '/upload/complete', { upload: id, size: file.size, path: file.webkitRelativePath || file.name });
+  }
+
+  renderUpload(S) {
+    const u = S.upload;
+    if (!u) return null;
+    const pct = u.total ? Math.min(100, Math.floor(u.sent / u.total * 100)) : 0;
+    const secs = Math.max(0.5, (Date.now() - u.started) / 1000);
+    const rate = u.sent / secs;
+    const eta = rate > 0 && u.sent < u.total ? Math.ceil((u.total - u.sent) / rate) : 0;
+    const fmtEta = t => t >= 60 ? Math.floor(t / 60) + 'm ' + (t % 60) + 's' : t + 's';
+    const title = { uploading: 'uploading', retrying: 'connection hiccup, retrying', saving: 'saving on the server', done: 'uploaded', error: 'upload failed' }[u.status] || u.status;
+    const color = u.status === 'error' ? '#C25B4A' : u.status === 'done' ? '#7BC47F' : '#D97757';
+    const mono = "font-family:'JetBrains Mono', monospace;";
+    return (
+      <div style={s('position:fixed; left:24px; bottom:24px; z-index:60; width:380px; background:#161616; border:1px solid #2A2A2A; border-radius:18px; padding:14px 16px 13px; box-shadow:0 14px 44px rgba(0,0,0,.55);')}>
+        <div style={s('display:flex; align-items:center; gap:10px;')}>
+          <span style={s('width:8px; height:8px; border-radius:50%; background:' + color + ';')}></span>
+          <span style={s(mono + 'font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:' + color + ';')}>{title}</span>
+          <div style={s('flex:1;')}></div>
+          {(u.status === 'done' || u.status === 'error') &&
+            <span onClick={() => this.setState({ upload: null })} style={s(mono + 'font-size:12px; color:#6E6E6E; cursor:pointer;')}>×</span>}
+        </div>
+        <div style={s('margin-top:8px; font-size:13px; color:#EDEDED; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;')}>{u.name}</div>
+        <div style={s('margin-top:9px; height:6px; background:#262626; border-radius:999px; overflow:hidden;')}>
+          <div style={s('height:100%; width:' + (u.status === 'error' ? 100 : pct) + '%; background:' + color + '; transition:width .3s;')}></div>
+        </div>
+        <div style={s(mono + 'margin-top:8px; font-size:11px; color:#9A9A9A;')}>
+          {fmtBytes(u.sent)} / {fmtBytes(u.total)} · {pct}%
+          {u.status === 'uploading' && rate > 0 ? ' · ' + fmtBytes(rate) + '/s · ' + fmtEta(eta) + ' left' : ''}
+        </div>
+        {u.status === 'error' && <div style={s('margin-top:7px; font-size:12px; color:#E08A7A;')}>{u.error}</div>}
+        {(u.status === 'uploading' || u.status === 'saving' || u.status === 'retrying') &&
+          <div style={s('margin-top:6px; font-size:11px; color:#6E6E6E;')}>keep this tab open until it finishes</div>}
+      </div>
+    );
+  }
 
   /* ---------- render ---------- */
   computeMenuItems(S) {
@@ -921,6 +1019,7 @@ class Unit extends React.Component {
                 {openNode && S.tab === 'editor' && this.dirtyContent.size > 0 &&
                   <span style={s("font-family:'JetBrains Mono', monospace; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:#6E6E6E; padding-right:6px;")}>saving…</span>}
                 <input type="file" multiple ref={this.fileInputRef} onChange={this.onUpload} style={s('display:none;')} />
+                {this.renderUpload(S)}
               </div>
 
               <div style={s('flex:1; min-height:0; position:relative; padding:0 10px 10px;')}>
