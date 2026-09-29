@@ -9,9 +9,19 @@
 //
 // Nothing outside this file reads nodes.content/blob directly, so switching
 // backends is a config change, not a code change.
+//   Parted (any backend): big files from chunked uploads are written as <= 8 MB rows in
+//     blob_parts and nodes.blob holds a pointer `pgp:<id>`. They are streamed in and out and
+//     never loaded whole - read() refuses them, download streams them.
 const crypto = require('crypto');
+const fs = require('fs');
+const { once } = require('events');
 const { q } = require('./db');
 const r2 = require('./r2');
+const { httpError } = require('./errors');
+
+const PART_BYTES = 8 * 1024 * 1024;
+const PARTS = /^pgp:([0-9a-f-]{36})$/;
+const partsId = buf => (Buffer.isBuffer(buf) && buf.length === 40 && PARTS.test(buf.toString('latin1')) ? buf.toString('latin1').slice(4) : null);
 
 const MAX_TEXT = Number(process.env.MAX_TEXT_BYTES || 8 * 1024 * 1024);
 const USE_R2 = r2.enabled();
@@ -65,20 +75,75 @@ function prepareSync(input) {
 
 async function bytesFor(row) {
   if (row.blob) {
+    if (partsId(row.blob)) throw httpError(413, `file is too large to load (${Math.round(Number(row.size) / 1048576)} MB) - download it instead`);
     if (isPointer(row.blob)) return await r2.get('blob/' + row.blob.toString('latin1').slice(3));
     return row.blob;
   }
   return Buffer.from(row.content || '', 'utf8');
 }
 
-// Read raw bytes + text for a node.
-async function read(nodeId) {
+// Read raw bytes + text for a node. opts.metaOnly: for binary nodes, don't load the bytes (buffer: null).
+async function read(nodeId, opts = {}) {
   const r = await q('SELECT content, blob, size FROM nodes WHERE id = $1', [nodeId]);
   if (!r.rows.length) return null;
   const row = r.rows[0];
   const binary = !!row.blob;
+  if (binary && opts.metaOnly) return { binary, buffer: null, content: null, size: Number(row.size) };
   const buffer = await bytesFor(row);
   return { binary, buffer, content: binary ? null : (row.content !== null ? row.content : buffer.toString('utf8')), size: Number(row.size) };
+}
+
+// Is this node's content stored in parts (too big to load whole)?
+async function isParted(nodeId) {
+  const r = await q('SELECT blob FROM nodes WHERE id = $1', [nodeId]);
+  return !!(r.rows.length && partsId(r.rows[0].blob));
+}
+
+// Store a file from disk as parts, a piece at a time. Returns a row shape for createNodesBulk.
+async function storeFileParts(filePath) {
+  const id = crypto.randomUUID();
+  const fh = await fs.promises.open(filePath, 'r');
+  const buf = Buffer.alloc(PART_BYTES);
+  let size = 0;
+  try {
+    for (let idx = 0; ; idx++) {
+      const { bytesRead } = await fh.read(buf, 0, PART_BYTES, size);
+      if (!bytesRead) break;
+      await q('INSERT INTO blob_parts(id, idx, data) VALUES ($1,$2,$3)', [id, idx, Buffer.from(buf.subarray(0, bytesRead))]);
+      size += bytesRead;
+    }
+  } catch (e) {
+    await q('DELETE FROM blob_parts WHERE id = $1', [id]).catch(() => {});
+    throw e;
+  } finally {
+    await fh.close();
+  }
+  return { content: null, blob: Buffer.from('pgp:' + id, 'latin1'), size };
+}
+
+// Drop parts no node or version snapshot points at any more (deleted files). Run at startup only,
+// when no upload can be half-way through writing its parts.
+async function pruneParts() {
+  const r = await q(`DELETE FROM blob_parts bp
+    WHERE NOT EXISTS (SELECT 1 FROM nodes n WHERE n.blob = convert_to('pgp:' || bp.id::text, 'LATIN1'))
+      AND NOT EXISTS (SELECT 1 FROM versions v WHERE strpos(v.snapshot::text, 'pgp:' || bp.id::text) > 0)`);
+  if (r.rowCount) console.log('[storage] pruned', r.rowCount, 'orphaned blob parts');
+}
+
+// Send a node's bytes to an HTTP response; parts are streamed one at a time (with backpressure).
+async function pipeTo(nodeId, res) {
+  const r = await q('SELECT content, blob, size FROM nodes WHERE id = $1', [nodeId]);
+  if (!r.rows.length) { res.end(); return; }
+  const row = r.rows[0];
+  const id = partsId(row.blob);
+  if (!id) { res.end(await bytesFor(row)); return; }
+  res.setHeader('Content-Length', String(row.size));
+  for (let idx = 0; ; idx++) {
+    const p = await q('SELECT data FROM blob_parts WHERE id = $1 AND idx = $2', [id, idx]);
+    if (!p.rows.length) break;
+    if (!res.write(p.rows[0].data)) await once(res, 'drain');
+  }
+  res.end();
 }
 
 // Read many files in one round trip. Text from Postgres is returned inline;
@@ -88,6 +153,7 @@ async function readMany(nodeIds) {
   const out = new Map();
   for (const row of r.rows) {
     const binary = !!row.blob;
+    if (binary && partsId(row.blob)) { out.set(row.id, { binary: true, content: null, size: Number(row.size) }); continue; }
     if (binary) {
       const buf = await bytesFor(row);
       const bin = isBinary(buf);
@@ -112,4 +178,5 @@ async function unstash(sha) {
   return r.rows.length ? r.rows[0].data : Buffer.alloc(0);
 }
 
-module.exports = { isBinary, prepare, prepareSync, read, readMany, stash, unstash, sha256, MAX_TEXT, USE_R2 };
+module.exports = { isBinary, prepare, prepareSync, read, readMany, stash, unstash, sha256, MAX_TEXT, USE_R2,
+  partsId, isParted, storeFileParts, pipeTo, pruneParts, PART_BYTES };

@@ -240,6 +240,43 @@ test('chunked upload assembles a big file byte-for-byte', async () => {
   assert.equal(again.status, 404);
 });
 
+test('a big chunked upload is stored in parts and streamed back without loading it whole', async () => {
+  const p = await project(A, 'parted');
+  const bytes = Buffer.alloc(17 * 1024 * 1024 + 4321);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 7 + (i >> 11)) & 255;
+  const CH = 8 * 1024 * 1024;
+  const id = 'bigupload' + Date.now();
+  for (let off = 0; off < bytes.length; off += CH) {
+    const r = await A.req('PUT', `/api/projects/${p.id}/upload/chunk?upload=${id}&offset=${off}&total=${bytes.length}`, Buffer.from(bytes.subarray(off, off + CH)));
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+  }
+  const done = await A.post(`/api/projects/${p.id}/upload/complete`, { upload: id, size: bytes.length, path: 'game.zip' });
+  assert.equal(done.status, 201, JSON.stringify(done.data));
+  const g = await A.get(`/api/projects/${p.id}`);
+  const node = g.data.nodes.find(n => n.name === 'game.zip');
+  assert.ok(node && node.binary, 'binary node created');
+  assert.equal(Number(node.size), bytes.length);
+  // opening the node works (no bytes loaded), inline reads are refused with a clear message
+  const open = await A.get(`/api/nodes/${node.id}`);
+  assert.equal(open.status, 200);
+  const inline = await A.get(`/api/projects/${p.id}/files?path=game.zip`);
+  assert.equal(inline.status, 413);
+  assert.match(inline.data.error, /download it instead/);
+  // download streams the parts back byte-for-byte
+  const dl = await A.get(`/api/nodes/${node.id}/download`);
+  assert.ok(Buffer.from(dl.data).equals(bytes), 'downloaded bytes match');
+  // a version snapshot keeps it; reverting restores a working file
+  const v = await A.post(`/api/projects/${p.id}/versions`, { label: 'with big file' });
+  assert.ok(v.status === 200 || v.status === 201, JSON.stringify(v.data));
+  const vid = (v.data.version || v.data).id;
+  const rv = await A.post(`/api/versions/${vid}/revert`);
+  assert.ok(rv.status === 200 || rv.status === 201, JSON.stringify(rv.data));
+  const g2 = await A.get(`/api/projects/${p.id}`);
+  const node2 = g2.data.nodes.find(n => n.name === 'game.zip');
+  const dl2 = await A.get(`/api/nodes/${node2.id}/download`);
+  assert.ok(Buffer.from(dl2.data).equals(bytes), 'reverted file still downloads intact');
+});
+
 test('binary upload is stored and downloadable byte-for-byte', async () => {
   const p = await project(A, 'bin');
   const bytes = Buffer.from([0, 1, 2, 3, 255, 254, 0, 66]);

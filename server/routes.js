@@ -94,7 +94,7 @@ router.get('/nodes/:id', wrap(async (req, res) => {
   const n = await graph.ownNode(req.user.id, req.params.id);
   const out = graph.publicNode(n);
   if (n.kind === 'file') {
-    const data = await storage.read(n.id);
+    const data = await storage.read(n.id, { metaOnly: true });
     out.content = data && !data.binary ? data.content : null;
   }
   res.json({ node: out });
@@ -126,10 +126,9 @@ router.post('/nodes/:id/unlink', wrap(async (req, res) => {
 router.get('/nodes/:id/download', wrap(async (req, res) => {
   const n = await graph.ownNode(req.user.id, req.params.id);
   if (n.kind !== 'file') throw httpError(400, 'folders cannot be downloaded');
-  const data = await storage.read(n.id);
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(n.name)}"`);
   res.setHeader('Content-Type', 'application/octet-stream');
-  res.send(data ? data.buffer : Buffer.alloc(0));
+  await storage.pipeTo(n.id, res);   // streams big (parted) files a piece at a time
 }));
 
 router.post('/projects/:id/edges', wrap(async (req, res) => {
@@ -185,8 +184,11 @@ router.post('/projects/:id/upload/complete', wrap(async (req, res) => {
   if (!st) throw httpError(404, 'upload not found (it may have expired), start again');
   if (st.size !== size) throw httpError(400, `upload incomplete: server has ${st.size} of ${size} bytes`);
   try {
-    const blob = await fs.promises.readFile(file);
-    const result = await graph.createNodesBulk(req.user.id, req.params.id, [{ path: String(req.body.path || req.body.name || 'upload.bin'), blob }]);
+    // big files are copied into storage piece by piece - never loaded into memory whole
+    const entry = size > storage.PART_BYTES
+      ? { stored: await storage.storeFileParts(file) }
+      : { blob: await fs.promises.readFile(file) };
+    const result = await graph.createNodesBulk(req.user.id, req.params.id, [{ path: String(req.body.path || req.body.name || 'upload.bin'), ...entry }]);
     res.status(201).json(result);
   } finally {
     await fs.promises.unlink(file).catch(() => {});

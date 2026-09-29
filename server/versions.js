@@ -30,7 +30,10 @@ async function snapshot(userId, projectId, label) {
     for (const n of nodes.rows) {
       const s = { id: n.id, kind: n.kind, name: n.name, x: n.x, y: n.y, lang: n.lang, size: Number(n.size) };
       if (n.kind === 'file') {
-        if (n.blob) {
+        if (n.blob && storage.partsId(n.blob)) {
+          // parts are never rewritten, so the snapshot can keep pointing at them
+          s.blob_ptr = n.blob.toString('latin1');
+        } else if (n.blob) {
           // n.blob is either raw bytes (PG backend) or an r2:<sha> pointer.
           const bytes = await storage.read(n.id);
           s.blob_sha = await storage.stash(bytes.buffer);
@@ -59,7 +62,9 @@ async function revert(userId, versionId) {
     for (const n of snap.nodes) {
       let blob = null, content = null, size = n.size || 0;
       if (n.kind === 'file') {
-        if (n.blob_sha) {
+        if (n.blob_ptr) {
+          blob = Buffer.from(n.blob_ptr, 'latin1');
+        } else if (n.blob_sha) {
           const bytes = await storage.unstash(n.blob_sha);
           const stored = await storage.prepare(bytes); // re-offloads to R2 if that's the backend
           content = stored.content; blob = stored.blob; size = stored.size;

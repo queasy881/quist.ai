@@ -13,6 +13,7 @@ const ctl = require('./ctl');
 const terminal = require('./terminal');
 const builds = require('./builds');
 const sandbox = require('./sandbox');
+const storage = require('./storage');
 const { HttpError, pgToHttp } = require('./errors');
 
 const PORT = Number(process.env.PORT || 3000);
@@ -65,6 +66,7 @@ async function main() {
     await migrate();
     health.db = true;
     console.log('[quist] database ready');
+    storage.pruneParts().catch(e => console.error('[storage] prune:', e.message));
   } catch (e) {
     health.dbError = e.message;
     console.error('[quist] DATABASE NOT READY — the API will 5xx until this is fixed:\n   ', e.message);

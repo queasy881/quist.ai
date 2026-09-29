@@ -304,7 +304,8 @@ async function createNodesBulk(userId, projectId, files, opts = {}) {
     const name = p.split('/').pop();
     if (p.split('/').some(seg => !validName(seg))) throw httpError(400, 'invalid path: ' + f.path);
     void name;
-    const stored = await storage.prepare(f.blob != null ? f.blob : (f.content == null ? '' : f.content));
+    // f.stored: already written by the caller (e.g. a big upload stored as parts)
+    const stored = f.stored || await storage.prepare(f.blob != null ? f.blob : (f.content == null ? '' : f.content));
     incoming.set(p, stored);
   }
 

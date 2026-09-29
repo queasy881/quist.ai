@@ -87,6 +87,7 @@ class Workspace {
         await fsp.mkdir(abs, { recursive: true });
         this.manifest.set(rel, { id: n.id, kind: 'folder', hash: '' });
       } else {
+        if (Number(n.size) > MAX_FILE || await storage.isParted(n.id)) continue;   // too big for the shell workspace
         const data = await storage.read(n.id);
         const buf = data ? data.buffer : Buffer.alloc(0);
         const h = sha(buf);
@@ -222,6 +223,7 @@ class Workspace {
       this.manifest.set(rel, { id, kind: 'folder', hash: '' });
       for (const k of g.tree.kids(id)) await this.restoreFromGraph(k.id, rel + '/' + k.name, g);
     } else {
+      if (Number(n.size) > MAX_FILE || await storage.isParted(id)) return;   // too big for the shell workspace
       const data = await storage.read(id);
       const buf = data ? data.buffer : Buffer.alloc(0);
       await fsp.mkdir(path.dirname(abs), { recursive: true });
